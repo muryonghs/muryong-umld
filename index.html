@@ -6,26 +6,30 @@
     <title>양심우산 대여증</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <style>
+        /* Apple Style CSS */
         :root {
-            --bg-color: #F5F5F7; --card-bg: #FFFFFF; --text-main: #1D1D1F; 
-            --text-sub: #86868B; --apple-blue: #0071E3; --apple-blue-hover: #0077ED; 
+            --bg-color: #F5F5F7; --card-bg: #FFFFFF; --text-main: #1D1D1F;
+            --text-sub: #86868B; --apple-blue: #0071E3; --apple-blue-hover: #0077ED;
             --success-green: #34C759; --danger-red: #FF3B30;
         }
         body { font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif; background-color: var(--bg-color); color: var(--text-main); margin: 0; padding: 40px 20px; display: flex; flex-direction: column; align-items: center; }
         .container { background-color: var(--card-bg); width: 100%; max-width: 360px; border-radius: 20px; padding: 30px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); text-align: center; box-sizing: border-box; }
         h2 { font-size: 24px; font-weight: 600; margin-bottom: 5px; letter-spacing: -0.5px; }
         p.subtitle { color: var(--text-sub); font-size: 14px; margin-bottom: 25px; }
-        
-        input { width: 100%; box-sizing: border-box; padding: 14px 16px; margin-bottom: 12px; border: 1px solid #D2D2D7; border-radius: 12px; font-size: 16px; background-color: #FAFAFA; }
+
+        input { width: 100%; box-sizing: border-box; padding: 14px 16px; margin-bottom: 12px; border: 1px solid #D2D2D7; border-radius: 12px; font-size: 16px; background-color: #FAFAFA; transition: all 0.2s ease; }
         input:focus { outline: none; border-color: var(--apple-blue); background-color: #FFF; box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.2); }
-        
-        button { width: 100%; padding: 14px; background-color: var(--apple-blue); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 10px; }
+
+        button { width: 100%; padding: 14px; background-color: var(--apple-blue); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 10px; transition: background-color 0.2s; }
+        button:hover { background-color: var(--apple-blue-hover); }
+        button:disabled { background-color: #A1C6EA; cursor: not-allowed; } /* 추가된 로딩 스타일 */
         button.secondary { background-color: #E8E8ED; color: var(--text-main); margin-top: 15px; }
-        
+        button.secondary:hover { background-color: #D2D2D7; }
+
         #qrSection { display: none; }
         .qr-box { margin: 20px auto; padding: 15px; background: white; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: inline-block; border: 1px solid #eaeaea; }
         .qr-box img { width: 180px; height: 180px; display: block; }
-        
+
         .status-badge { display: inline-block; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; margin-top: 10px; }
         .status-renting { background-color: #FEECEB; color: var(--danger-red); }
         .status-clear { background-color: #EAF8ED; color: var(--success-green); }
@@ -40,20 +44,20 @@
     <div class="container" id="inputSection">
         <h2>우산 대여증 발급</h2>
         <p class="subtitle">모든 정보를 정확히 입력해주세요</p>
-        
+
         <input type="text" id="studentId" placeholder="학번 (필수)">
         <input type="text" id="studentName" placeholder="이름 (필수)">
         <input type="tel" id="studentPhone" placeholder="전화번호 (필수)">
-        
-        <button onclick="generateQR()">QR코드 열기</button>
+
+        <button id="submitBtn">QR코드 열기</button>
     </div>
 
     <div class="container" id="qrSection">
         <h2>나의 대여증</h2>
         <p class="subtitle" id="studentInfo"></p>
-        
+
         <div id="statusArea" class="status-badge status-clear">상태 확인 중...</div>
-        
+
         <div id="qr-display-area" class="qr-box">
             <img id="qr-image" src="" alt="QR Code">
         </div>
@@ -62,51 +66,83 @@
             <h1>✅</h1>
             <p id="success-text">처리가 완료되었습니다!</p>
         </div>
-        
+
         <button class="secondary" onclick="resetForm()">처음으로 / 다른 사람</button>
     </div>
 
     <script>
-        // 에러 방지를 위해 변수 선언
+        // ★ 2. Supabase 안전하게 초기화 (에러가 나도 코드가 멈추지 않음)
         let supabase;
         try {
             const SUPABASE_URL = 'https://urzbonndueqylygtzlus.supabase.co';
             const SUPABASE_ANON_KEY = 'sb_publishable_rZYklPBEFvoKZxatf_xAig_ceWd_epI';
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        } catch (e) {
-            alert("서버 연결에 실패했습니다. 페이지를 새로고침 해주세요.");
+            if(window.supabase) {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            }
+        } catch(e) {
+            console.warn("Supabase 로드 실패:", e);
         }
 
         let statusCheckInterval;
-        let currentStatus = null; 
+        let currentStatus = null;
 
+        // 페이지 로드 시 자동 로그인 시도
         window.onload = () => {
-            const savedId = localStorage.getItem('apple_studentId');
-            const savedName = localStorage.getItem('apple_studentName');
-            const savedPhone = localStorage.getItem('apple_studentPhone');
-            if(savedId && savedName && savedPhone) { showQR(savedId, savedName); }
+            try {
+                const savedId = localStorage.getItem('apple_studentId');
+                const savedName = localStorage.getItem('apple_studentName');
+                const savedPhone = localStorage.getItem('apple_studentPhone');
+                if(savedId && savedName && savedPhone) {
+                    showQR(savedId, savedName);
+                }
+            } catch(e) {
+                console.warn("로컬 스토리지 접근 불가 (시크릿 모드 등)");
+            }
         };
 
-        function generateQR() {
-            const id = document.getElementById('studentId').value.trim();
-            const name = document.getElementById('studentName').value.trim();
-            const phone = document.getElementById('studentPhone').value.trim();
-            
-            if(!id || !name || !phone) { alert("⚠️ 학번, 이름, 전화번호를 모두 입력해주세요!"); return; }
+        // ★ 3. 가장 핵심! 버튼 클릭 이벤트 안전장치 추가
+        document.getElementById('submitBtn').addEventListener('click', function() {
+            const btn = this;
+            const idInput = document.getElementById('studentId').value.trim();
+            const nameInput = document.getElementById('studentName').value.trim();
+            const phoneInput = document.getElementById('studentPhone').value.trim();
 
-            localStorage.setItem('apple_studentId', id);
-            localStorage.setItem('apple_studentName', name);
-            localStorage.setItem('apple_studentPhone', phone);
-            
-            showQR(id, name);
-        }
+            // 빈칸 검사
+            if(!idInput || !nameInput || !phoneInput) {
+                alert("⚠️ 학번, 이름, 전화번호를 모두 입력해주세요!");
+                return;
+            }
 
+            // ★ 즉각적인 버튼 반응 (눌렀다는 걸 시각적으로 보여줌)
+            btn.innerText = "처리 중...";
+            btn.disabled = true;
+
+            // 로컬 스토리지 저장 (시크릿 모드에서 에러 나도 무시하고 진행하도록 try-catch로 감쌈)
+            try {
+                localStorage.setItem('apple_studentId', idInput);
+                localStorage.setItem('apple_studentName', nameInput);
+                localStorage.setItem('apple_studentPhone', phoneInput);
+            } catch(e) {
+                console.warn("정보 저장 불가");
+            }
+
+            // 화면 전환 실행
+            showQR(idInput, nameInput);
+            
+            // 버튼 원상복구 (뒤로가기 했을 때를 대비)
+            setTimeout(() => {
+                btn.innerText = "QR코드 열기";
+                btn.disabled = false;
+            }, 1000);
+        });
+
+        // 4. QR 화면 띄우기
         async function showQR(id, name) {
             document.getElementById('inputSection').style.display = 'none';
             document.getElementById('qrSection').style.display = 'block';
             document.getElementById('studentInfo').innerText = `${id} ${name}`;
 
-            // API로 QR 이미지 불러오기
+            // QR 이미지 불러오기
             document.getElementById('qr-image').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${id}`;
 
             await checkStatus(id);
@@ -115,25 +151,32 @@
             statusCheckInterval = setInterval(() => checkRealTime(id), 2000);
         }
 
+        // 5. 현재 대여 상태 확인
         async function checkStatus(id) {
-            if(!supabase) return;
-            const statusArea = document.getElementById('statusArea');
+            if(!supabase) {
+                document.getElementById('statusArea').innerText = "DB 연결 지연 중...";
+                return;
+            }
+            
             try {
                 const { data, error } = await supabase.from('rentals').select('*').eq('studentId', id).eq('status', '대여중');
                 if (error) throw error;
 
                 if (data && data.length > 0) {
                     currentStatus = '대여중';
+                    const statusArea = document.getElementById('statusArea');
                     statusArea.className = 'status-badge status-renting';
                     statusArea.innerText = `☂️ ${data[0].umbrellaNum}호 우산 대여 중`;
                 } else {
                     currentStatus = '없음';
+                    const statusArea = document.getElementById('statusArea');
                     statusArea.className = 'status-badge status-clear';
                     statusArea.innerText = `✅ 대여 가능 (빌린 우산 없음)`;
                 }
             } catch (err) { console.error(err); }
         }
 
+        // 6. 실시간 감지
         async function checkRealTime(id) {
             if(!supabase) return;
             try {
@@ -152,6 +195,7 @@
             } catch(e) {}
         }
 
+        // 7. 성공 메시지 띄우기
         function showSuccessMsg(text) {
             document.getElementById('qr-display-area').style.display = 'none';
             document.getElementById('statusArea').style.display = 'none';
@@ -159,11 +203,14 @@
             document.getElementById('success-text').innerText = text;
         }
 
+        // 8. 초기화 버튼
         function resetForm() {
             if(statusCheckInterval) clearInterval(statusCheckInterval);
-            localStorage.removeItem('apple_studentId');
-            localStorage.removeItem('apple_studentName');
-            localStorage.removeItem('apple_studentPhone');
+            try {
+                localStorage.removeItem('apple_studentId');
+                localStorage.removeItem('apple_studentName');
+                localStorage.removeItem('apple_studentPhone');
+            } catch(e){}
             location.reload();
         }
     </script>
