@@ -36,18 +36,11 @@
             padding: 30px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
             text-align: center;
+            box-sizing: border-box;
         }
-        h2 {
-            font-size: 24px;
-            font-weight: 600;
-            margin-bottom: 5px;
-            letter-spacing: -0.5px;
-        }
-        p.subtitle {
-            color: var(--text-sub);
-            font-size: 14px;
-            margin-bottom: 25px;
-        }
+        h2 { font-size: 24px; font-weight: 600; margin-bottom: 5px; letter-spacing: -0.5px; }
+        p.subtitle { color: var(--text-sub); font-size: 14px; margin-bottom: 25px; }
+        
         input {
             width: 100%;
             box-sizing: border-box;
@@ -79,11 +72,7 @@
             margin-top: 10px;
         }
         button:hover { background-color: var(--apple-blue-hover); }
-        button.secondary {
-            background-color: #E8E8ED;
-            color: var(--text-main);
-            margin-top: 15px;
-        }
+        button.secondary { background-color: #E8E8ED; color: var(--text-main); margin-top: 15px; }
         button.secondary:hover { background-color: #D2D2D7; }
         
         #qrSection { display: none; }
@@ -111,11 +100,11 @@
 
     <div class="container" id="inputSection">
         <h2>우산 대여증 발급</h2>
-        <p class="subtitle">학번과 이름을 입력해주세요</p>
+        <p class="subtitle">모든 정보를 정확히 입력해주세요</p>
         
-        <input type="text" id="studentId" placeholder="학번 (예: 20240101)">
-        <input type="text" id="studentName" placeholder="이름">
-        <input type="tel" id="studentPhone" placeholder="전화번호 (선택)">
+        <input type="text" id="studentId" placeholder="학번 (필수)">
+        <input type="text" id="studentName" placeholder="이름 (필수)">
+        <input type="tel" id="studentPhone" placeholder="전화번호 (필수)">
         
         <button onclick="generateQR()">QR코드 열기</button>
     </div>
@@ -140,20 +129,30 @@
         window.onload = () => {
             const savedId = localStorage.getItem('apple_studentId');
             const savedName = localStorage.getItem('apple_studentName');
-            if(savedId && savedName) showQR(savedId, savedName);
+            const savedPhone = localStorage.getItem('apple_studentPhone');
+            
+            // 세 가지 정보가 다 저장되어 있으면 바로 QR 화면으로 넘어감
+            if(savedId && savedName && savedPhone) {
+                showQR(savedId, savedName);
+            }
         };
 
         function generateQR() {
             const id = document.getElementById('studentId').value.trim();
             const name = document.getElementById('studentName').value.trim();
+            const phone = document.getElementById('studentPhone').value.trim();
             
-            if(!id || !name) {
-                alert("학번과 이름을 정확히 입력해주세요.");
+            // 🚨 학번, 이름, 전화번호 중 하나라도 비어있으면 경고창 띄우고 멈춤
+            if(!id || !name || !phone) {
+                alert("⚠️ 학번, 이름, 전화번호를 모두 입력해주세요!");
                 return;
             }
 
+            // 내 폰에 정보 저장
             localStorage.setItem('apple_studentId', id);
             localStorage.setItem('apple_studentName', name);
+            localStorage.setItem('apple_studentPhone', phone);
+            
             showQR(id, name);
         }
 
@@ -162,13 +161,17 @@
             document.getElementById('qrSection').style.display = 'block';
             document.getElementById('studentInfo').innerText = `${id} ${name}`;
 
-            document.getElementById('qrcode').innerHTML = "";
-            new QRCode(document.getElementById("qrcode"), {
-                text: id, // QR코드에는 학번만 저장
-                width: 180, height: 180,
-                colorDark : "#1D1D1F", colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.H
-            });
+            try {
+                document.getElementById('qrcode').innerHTML = "";
+                new QRCode(document.getElementById("qrcode"), {
+                    text: id, // 관리자는 학번만 스캔해서 확인
+                    width: 180, height: 180,
+                    colorDark : "#1D1D1F", colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.H
+                });
+            } catch (e) {
+                alert("QR 코드를 생성하는 데 문제가 발생했습니다. 인터넷 연결을 확인해주세요.");
+            }
 
             checkStatus(id);
         }
@@ -182,6 +185,8 @@
                     .eq('studentId', id)
                     .eq('status', '대여중');
 
+                if (error) throw error;
+
                 if (data && data.length > 0) {
                     statusArea.className = 'status-badge status-renting';
                     statusArea.innerText = `☂️ ${data[0].umbrellaNum}호 우산 대여 중`;
@@ -191,12 +196,14 @@
                 }
             } catch (err) {
                 statusArea.innerText = "상태를 불러올 수 없습니다.";
+                console.error(err);
             }
         }
 
         function resetForm() {
             localStorage.removeItem('apple_studentId');
             localStorage.removeItem('apple_studentName');
+            localStorage.removeItem('apple_studentPhone');
             location.reload();
         }
     </script>
