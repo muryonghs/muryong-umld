@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 대시보드</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* Apple Style CSS */
+        :root {
+            --bg-color: #F5F5F7;
+            --card-bg: #FFFFFF;
+            --text-main: #1D1D1F;
+            --text-sub: #86868B;
+            --apple-blue: #0071E3;
+            --border-color: #E5E5EA;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 30px 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { font-size: 28px; margin: 0 0 5px 0; letter-spacing: -0.5px; }
+        .header p { color: var(--text-sub); margin: 0; font-size: 15px; }
+        
+        .card {
+            background-color: var(--card-bg);
+            width: 100%;
+            max-width: 500px;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+        
+        /* 스캐너 영역 둥글게 처리 */
+        #reader {
+            border: none !important;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #000;
+        }
+        #reader__dashboard_section_csr span { color: white !important; }
+        
+        .manual-box { display: flex; gap: 10px; margin-top: 15px; }
+        input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 15px;
+            outline: none;
+        }
+        input:focus { border-color: var(--apple-blue); }
+        button {
+            padding: 12px 20px;
+            background-color: var(--apple-blue);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        /* 애플 스타일 현황 테이블 */
+        .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .table-header h3 { margin: 0; font-size: 18px; }
+        .count-badge { background-color: #E8E8ED; padding: 4px 10px; border-radius: 12px; font-size: 13px; font-weight: 600; color: var(--text-sub); }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th { text-align: left; padding: 10px 5px; color: var(--text-sub); font-weight: 500; border-bottom: 1px solid var(--border-color); }
+        td { padding: 12px 5px; border-bottom: 1px solid var(--border-color); }
+        tr:last-child td { border-bottom: none; }
+        
+        .badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .bg-rented { background-color: #FEECEB; color: #FF3B30; }
+
+        /* 애플 스타일 토스트 알림창 */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: rgba(29, 29, 31, 0.9);
+            color: #fff;
+            text-align: center;
+            border-radius: 20px;
+            padding: 16px;
+            position: fixed;
+            z-index: 1000;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-size: 15px;
+            font-weight: 500;
+            backdrop-filter: blur(10px);
+            opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s;
+        }
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>우산 관리 대시보드</h1>
+        <p>QR 스캔으로 즉시 대여 및 반납</p>
+    </div>
+
+    <div class="card">
+        <div id="reader"></div>
+        <div class="manual-box">
+            <input type="text" id="manualId" placeholder="학번 직접 입력">
+            <button id="manualBtn">처리</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="table-header">
+            <h3>현재 대여 명단</h3>
+            <span class="count-badge" id="rentCount">0명 대여 중</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>학번</th>
+                    <th>우산</th>
+                    <th>상태</th>
+                </tr>
+            </thead>
+            <tbody id="rentalTableBody">
+                <tr><td colspan="3" style="text-align:center; color:#86868B;">데이터를 불러오는 중...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div id="toast">알림 내용</div>
+
+    <script>
+        const SUPABASE_URL = 'https://urzbonndueqylygtzlus.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_rZYklPBEFvoKZxatf_xAig_ceWd_epI';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // QR 스캐너 설정
+        const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 200, height: 200} }, false);
+        html5QrcodeScanner.render((decodedText) => {
+            html5QrcodeScanner.pause();
+            processStudent(decodedText);
+        });
+
+        // 수동 입력
+        document.getElementById('manualBtn').addEventListener('click', () => {
+            const id = document.getElementById('manualId').value;
+            if(id) processStudent(id);
+        });
+
+        // 커스텀 토스트 알림 함수
+        function showToast(message) {
+            const toast = document.getElementById("toast");
+            toast.innerText = message;
+            toast.className = "show";
+            setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
+        }
+
+        // ⚡️ 핵심: 대여/반납 즉시 처리 로직
+        async function processStudent(studentId) {
+            try {
+                // 대여중인 우산이 있는지 확인
+                const { data: existing, error: fetchErr } = await supabase
+                    .from('rentals')
+                    .select('*')
+                    .eq('studentId', studentId)
+                    .eq('status', '대여중');
+
+                if (fetchErr) throw fetchErr;
+
+                if (existing && existing.length > 0) {
+                    // [반납 로직] 묻지 않고 즉시 반납 완료 처리!
+                    await supabase
+                        .from('rentals')
+                        .update({ status: '반납완료', rentTime: new Date().toLocaleString() })
+                        .eq('id', existing[0].id);
+                    
+                    showToast(`✅ [${studentId}] 반납이 완료되었습니다.`);
+                } else {
+                    // [대여 로직] 대여할 때는 우산 번호가 필요하므로 입력창 띄움
+                    const umbrellaNum = prompt(`[${studentId}] 대여할 우산 번호를 입력하세요:`);
+                    if(umbrellaNum) {
+                        await supabase
+                            .from('rentals')
+                            .insert([{ 
+                                studentId: studentId, 
+                                umbrellaNum: umbrellaNum, 
+                                status: '대여중',
+                                rentTime: new Date().toLocaleString()
+                            }]);
+                        showToast(`☂️ [${studentId}] 대여가 완료되었습니다.`);
+                    }
+                }
+            } catch (err) {
+                showToast("⚠️ 처리 중 오류가 발생했습니다.");
+            }
+            
+            document.getElementById('manualId').value = '';
+            fetchRentals(); // 표 새로고침
+            
+            // 1.5초 후 스캐너 자동 재시작 (연속 스캔 방지용 딜레이)
+            setTimeout(() => {
+                if(html5QrcodeScanner.getState() === 2) html5QrcodeScanner.resume();
+            }, 1500);
+        }
+
+        // 📊 현재 '대여 중'인 명단만 쏙 뽑아오기
+        async function fetchRentals() {
+            const { data, error } = await supabase
+                .from('rentals')
+                .select('*')
+                .eq('status', '대여중') // ★ 반납된 건 빼고 '대여중'인 것만 가져옴!
+                .order('created_at', { ascending: false });
+
+            if (error) return;
+
+            const tbody = document.getElementById('rentalTableBody');
+            const rentCount = document.getElementById('rentCount');
+            
+            tbody.innerHTML = '';
+            rentCount.innerText = `${data.length}명 대여 중`; // 우측 상단에 카운트 표시
+            
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#86868B; padding: 30px 0;">현재 빌려간 우산이 없습니다.</td></tr>`;
+                return;
+            }
+
+            data.forEach((row) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-weight: 500;">${row.studentId}</td>
+                    <td>${row.umbrellaNum}호</td>
+                    <td><span class="badge bg-rented">대여 중</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 첫 화면 로드 시 명단 불러오기
+        fetchRentals();
+    </script>
+</body>
+</html>
