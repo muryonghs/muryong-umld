@@ -4,10 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>관리자 대시보드</title>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <style>
-        /* Apple Style CSS */
         :root {
             --bg-color: #F5F5F7; --card-bg: #FFFFFF; --text-main: #1D1D1F; 
             --text-sub: #86868B; --apple-blue: #0071E3; --border-color: #E5E5EA;
@@ -19,8 +18,7 @@
         
         .card { background-color: var(--card-bg); width: 100%; max-width: 500px; border-radius: 20px; padding: 20px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04); margin-bottom: 20px; box-sizing: border-box; }
         
-        #reader { border: none !important; border-radius: 16px; overflow: hidden; background: #000; }
-        #reader__dashboard_section_csr span { color: white !important; }
+        #reader { border: none !important; border-radius: 16px; overflow: hidden; background: #000; width: 100%; }
         
         .manual-box { display: flex; gap: 10px; margin-top: 15px; }
         input { flex: 1; padding: 12px 16px; border: 1px solid var(--border-color); border-radius: 12px; font-size: 15px; outline: none; }
@@ -34,7 +32,6 @@
         table { width: 100%; border-collapse: collapse; font-size: 14px; text-align: center;}
         th { padding: 10px 5px; color: var(--text-sub); font-weight: 500; border-bottom: 1px solid var(--border-color); }
         td { padding: 12px 5px; border-bottom: 1px solid var(--border-color); }
-        tr:last-child td { border-bottom: none; }
         
         .badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
         .bg-rented { background-color: #FEECEB; color: #FF3B30; }
@@ -72,16 +69,27 @@
     <div id="toast">알림 내용</div>
 
     <script>
-        const SUPABASE_URL = 'https://urzbonndueqylygtzlus.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_rZYklPBEFvoKZxatf_xAig_ceWd_epI';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let supabase;
+        try {
+            const SUPABASE_URL = 'https://urzbonndueqylygtzlus.supabase.co';
+            const SUPABASE_ANON_KEY = 'sb_publishable_rZYklPBEFvoKZxatf_xAig_ceWd_epI';
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } catch(e) {
+            alert("서버 연결에 실패했습니다. 페이지를 새로고침 해주세요.");
+        }
 
-        const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 200, height: 200} }, false);
-        html5QrcodeScanner.render((decodedText) => { html5QrcodeScanner.pause(); processStudent(decodedText); });
+        // 스캐너 초기화를 페이지가 완전히 로드된 후에 실행하도록 변경
+        document.addEventListener("DOMContentLoaded", function() {
+            const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 200, height: 200} }, false);
+            html5QrcodeScanner.render((decodedText) => { 
+                html5QrcodeScanner.pause(); 
+                processStudent(decodedText, html5QrcodeScanner); 
+            });
 
-        document.getElementById('manualBtn').addEventListener('click', () => {
-            const id = document.getElementById('manualId').value;
-            if(id) processStudent(id);
+            document.getElementById('manualBtn').addEventListener('click', () => {
+                const id = document.getElementById('manualId').value;
+                if(id) processStudent(id, html5QrcodeScanner);
+            });
         });
 
         function showToast(message) {
@@ -90,7 +98,8 @@
             setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
         }
 
-        async function processStudent(studentId) {
+        async function processStudent(studentId, scannerObj) {
+            if(!supabase) return;
             try {
                 const { data: existing, error: fetchErr } = await supabase.from('rentals').select('*').eq('studentId', studentId).eq('status', '대여중');
                 if (fetchErr) throw fetchErr;
@@ -105,14 +114,17 @@
                         showToast(`☂️ [${studentId}] 대여 완료`);
                     }
                 }
-            } catch (err) { showToast("⚠️ 처리 중 오류 발생"); }
+            } catch (err) { 
+                showToast("⚠️ 처리 중 오류 발생"); 
+            }
             
             document.getElementById('manualId').value = '';
             fetchRentals();
-            setTimeout(() => { if(html5QrcodeScanner.getState() === 2) html5QrcodeScanner.resume(); }, 1500);
+            setTimeout(() => { if(scannerObj && scannerObj.getState() === 2) scannerObj.resume(); }, 1500);
         }
 
         async function fetchRentals() {
+            if(!supabase) return;
             const { data, error } = await supabase.from('rentals').select('*').eq('status', '대여중').order('created_at', { ascending: false });
             if (error) return;
 
@@ -128,7 +140,9 @@
                 tbody.innerHTML += `<tr><td style="font-weight: 500;">${row.studentId}</td><td>${row.umbrellaNum}호</td><td><span class="badge bg-rented">대여 중</span></td></tr>`;
             });
         }
-        fetchRentals();
+        
+        // 초기 현황판 로드
+        if(supabase) { fetchRentals(); }
     </script>
 </body>
 </html>
