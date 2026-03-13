@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>양심우산 대여증</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         /* Apple Style CSS */
@@ -52,48 +51,32 @@
             background-color: #FAFAFA;
             transition: all 0.2s ease;
         }
-        input:focus {
-            outline: none;
-            border-color: var(--apple-blue);
-            background-color: #FFF;
-            box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.2);
-        }
+        input:focus { outline: none; border-color: var(--apple-blue); background-color: #FFF; box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.2); }
+        
         button {
-            width: 100%;
-            padding: 14px;
-            background-color: var(--apple-blue);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            margin-top: 10px;
+            width: 100%; padding: 14px; background-color: var(--apple-blue); color: white;
+            border: none; border-radius: 12px; font-size: 16px; font-weight: 600;
+            cursor: pointer; transition: background-color 0.2s; margin-top: 10px;
         }
         button:hover { background-color: var(--apple-blue-hover); }
         button.secondary { background-color: #E8E8ED; color: var(--text-main); margin-top: 15px; }
         button.secondary:hover { background-color: #D2D2D7; }
         
         #qrSection { display: none; }
-        #qrcode {
-            margin: 25px auto;
-            padding: 15px;
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            display: inline-block;
+        .qr-box {
+            margin: 20px auto; padding: 15px; background: white; border-radius: 16px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: inline-block; border: 1px solid #eaeaea;
         }
-        .status-badge {
-            display: inline-block;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 600;
-            margin-top: 10px;
-        }
+        .qr-box img { width: 180px; height: 180px; display: block; }
+        
+        .status-badge { display: inline-block; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; margin-top: 10px; }
         .status-renting { background-color: #FEECEB; color: var(--danger-red); }
         .status-clear { background-color: #EAF8ED; color: var(--success-green); }
+
+        /* 실시간 반응 창 */
+        #success-msg { display: none; margin: 30px 0; }
+        #success-msg h1 { font-size: 4rem; margin: 0; }
+        #success-msg p { font-size: 18px; font-weight: bold; color: var(--apple-blue); margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -115,26 +98,31 @@
         
         <div id="statusArea" class="status-badge status-clear">상태 확인 중...</div>
         
-        <div id="qrcode"></div>
+        <div id="qr-display-area" class="qr-box">
+            <img id="qr-image" src="" alt="QR Code">
+        </div>
+
+        <div id="success-msg">
+            <h1>✅</h1>
+            <p id="success-text">처리가 완료되었습니다!</p>
+        </div>
         
         <button class="secondary" onclick="resetForm()">처음으로 / 다른 사람</button>
     </div>
 
     <script>
-        // Supabase 연결
         const SUPABASE_URL = 'https://urzbonndueqylygtzlus.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_rZYklPBEFvoKZxatf_xAig_ceWd_epI';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let statusCheckInterval;
+        let currentStatus = null; // 대여중인지, 빌린게 없는지 저장
 
         window.onload = () => {
             const savedId = localStorage.getItem('apple_studentId');
             const savedName = localStorage.getItem('apple_studentName');
             const savedPhone = localStorage.getItem('apple_studentPhone');
-            
-            // 세 가지 정보가 다 저장되어 있으면 바로 QR 화면으로 넘어감
-            if(savedId && savedName && savedPhone) {
-                showQR(savedId, savedName);
-            }
+            if(savedId && savedName && savedPhone) { showQR(savedId, savedName); }
         };
 
         function generateQR() {
@@ -142,13 +130,8 @@
             const name = document.getElementById('studentName').value.trim();
             const phone = document.getElementById('studentPhone').value.trim();
             
-            // 🚨 학번, 이름, 전화번호 중 하나라도 비어있으면 경고창 띄우고 멈춤
-            if(!id || !name || !phone) {
-                alert("⚠️ 학번, 이름, 전화번호를 모두 입력해주세요!");
-                return;
-            }
+            if(!id || !name || !phone) { alert("⚠️ 학번, 이름, 전화번호를 모두 입력해주세요!"); return; }
 
-            // 내 폰에 정보 저장
             localStorage.setItem('apple_studentId', id);
             localStorage.setItem('apple_studentName', name);
             localStorage.setItem('apple_studentPhone', phone);
@@ -156,51 +139,72 @@
             showQR(id, name);
         }
 
-        function showQR(id, name) {
+        async function showQR(id, name) {
             document.getElementById('inputSection').style.display = 'none';
             document.getElementById('qrSection').style.display = 'block';
             document.getElementById('studentInfo').innerText = `${id} ${name}`;
 
-            try {
-                document.getElementById('qrcode').innerHTML = "";
-                new QRCode(document.getElementById("qrcode"), {
-                    text: id, // 관리자는 학번만 스캔해서 확인
-                    width: 180, height: 180,
-                    colorDark : "#1D1D1F", colorLight : "#ffffff",
-                    correctLevel : QRCode.CorrectLevel.H
-                });
-            } catch (e) {
-                alert("QR 코드를 생성하는 데 문제가 발생했습니다. 인터넷 연결을 확인해주세요.");
-            }
+            // API를 사용해 QR 코드 이미지 불러오기
+            document.getElementById('qr-image').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${id}`;
 
-            checkStatus(id);
+            await checkStatus(id);
+
+            // 실시간 상태 감지 시작 (2초마다)
+            if(statusCheckInterval) clearInterval(statusCheckInterval);
+            statusCheckInterval = setInterval(() => checkRealTime(id), 2000);
         }
 
         async function checkStatus(id) {
             const statusArea = document.getElementById('statusArea');
             try {
-                const { data, error } = await supabase
-                    .from('rentals')
-                    .select('*')
-                    .eq('studentId', id)
-                    .eq('status', '대여중');
-
+                const { data, error } = await supabase.from('rentals').select('*').eq('studentId', id).eq('status', '대여중');
                 if (error) throw error;
 
                 if (data && data.length > 0) {
+                    currentStatus = '대여중';
                     statusArea.className = 'status-badge status-renting';
                     statusArea.innerText = `☂️ ${data[0].umbrellaNum}호 우산 대여 중`;
                 } else {
+                    currentStatus = '없음';
                     statusArea.className = 'status-badge status-clear';
                     statusArea.innerText = `✅ 대여 가능 (빌린 우산 없음)`;
                 }
             } catch (err) {
-                statusArea.innerText = "상태를 불러올 수 없습니다.";
                 console.error(err);
             }
         }
 
+        // 실시간으로 상태 변화를 감지하여 화면 전환
+        async function checkRealTime(id) {
+            try {
+                const { data, error } = await supabase.from('rentals').select('*').eq('studentId', id).eq('status', '대여중');
+                if (error) return;
+
+                const isRentingNow = data && data.length > 0;
+
+                // 1. 빌린게 없었는데 -> 대여중으로 바뀜 (관리자가 대여 스캔함)
+                if (currentStatus === '없음' && isRentingNow) {
+                    clearInterval(statusCheckInterval);
+                    showSuccessMsg(`☂️ ${data[0].umbrellaNum}호 대여 완료!`);
+                } 
+                // 2. 대여중이었는데 -> 빌린게 없어짐 (관리자가 반납 스캔함)
+                else if (currentStatus === '대여중' && !isRentingNow) {
+                    clearInterval(statusCheckInterval);
+                    showSuccessMsg(`✅ 반납이 완료되었습니다!`);
+                }
+
+            } catch(e) {}
+        }
+
+        function showSuccessMsg(text) {
+            document.getElementById('qr-display-area').style.display = 'none';
+            document.getElementById('statusArea').style.display = 'none';
+            document.getElementById('success-msg').style.display = 'block';
+            document.getElementById('success-text').innerText = text;
+        }
+
         function resetForm() {
+            if(statusCheckInterval) clearInterval(statusCheckInterval);
             localStorage.removeItem('apple_studentId');
             localStorage.removeItem('apple_studentName');
             localStorage.removeItem('apple_studentPhone');
