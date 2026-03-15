@@ -1,34 +1,194 @@
-function generateQR() {
-            const studentId = document.getElementById('studentId').value;
-            const name = document.getElementById('studentName').value;
-            const phone = document.getElementById('phone').value;
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>우산 대여 관리자</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow-md">
+        <h1 class="text-2xl font-bold mb-6 text-center text-red-600">🛡️ 관리자: QR 스캐너</h1>
+        
+        <div id="reader" class="mb-6 w-full max-w-md mx-auto"></div>
 
-            // 1. 입력값 확인
-            if (!studentId || !name || (mode === 'rent' && !phone)) {
-                alert('모든 정보를 입력해주세요!');
-                return;
-            }
-
-            // 2. QR에 담을 데이터 준비
-            const qrData = JSON.stringify({
-                type: mode,
-                studentId: studentId,
-                name: name,
-                phone: mode === 'rent' ? phone : null
-            });
-
-            // 3. 숨겨진 영역을 먼저 보이게 처리 (중요!)
-            document.getElementById('qrSection').classList.remove('hidden');
-
-            // 4. 기존 QR 지우고 새로 생성
-            document.getElementById('qrcode').innerHTML = "";
+        <div id="scanResultCard" class="hidden mb-6 p-4 border-2 border-blue-500 rounded-lg bg-blue-50">
+            <h3 id="scanTitle" class="text-xl font-bold mb-3">스캔 결과</h3>
+            <div class="mb-4 text-gray-800 text-lg">
+                <p id="scanStudentInfo"></p>
+            </div>
             
-            // 약간의 딜레이를 주어 화면에 영역이 나타난 후 QR을 그리게 함
-            setTimeout(() => {
-                new QRCode(document.getElementById("qrcode"), {
-                    text: qrData,
-                    width: 200,
-                    height: 200,
-                });
-            }, 50);
+            <div id="rentInputArea" class="hidden mb-4">
+                <label class="block font-bold mb-1">지급할 우산 번호</label>
+                <input type="text" id="umbrellaInput" placeholder="예: 12번" class="w-full p-2 border border-gray-400 rounded focus:outline-blue-500">
+            </div>
+
+            <div id="returnInfoArea" class="hidden mb-4 p-3 bg-white rounded border border-gray-300 font-bold text-red-600 text-lg">
+                </div>
+
+            <div class="flex gap-2 mt-4">
+                <button id="btnConfirm" class="flex-1 py-3 text-white rounded font-bold text-lg">확인</button>
+                <button onclick="cancelScan()" class="flex-1 py-3 bg-gray-400 text-white rounded font-bold text-lg">취소/다시 스캔</button>
+            </div>
+        </div>
+
+        <h2 class="text-xl font-bold mb-3 border-b pb-2">대여/반납 현황</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-200">
+                        <th class="p-2 border">학번</th>
+                        <th class="p-2 border">이름</th>
+                        <th class="p-2 border">우산번호</th>
+                        <th class="p-2 border">상태</th>
+                    </tr>
+                </thead>
+                <tbody id="statusTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://urzbonndueqylygtzlus.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_rZYklPBEFvoKZxatf_xAig_ceWd_epI';
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+        let currentData = null; // 스캔된 데이터 저장용
+
+        async function onScanSuccess(decodedText) {
+            html5QrcodeScanner.pause(); // 스캔 일시정지
+
+            try {
+                currentData = JSON.parse(decodedText);
+                document.getElementById('scanResultCard').classList.remove('hidden');
+
+                if (currentData.type === 'rent') {
+                    // --- 대여 처리 화면 세팅 ---
+                    document.getElementById('scanTitle').innerText = "☂️ 대여 신청 확인";
+                    document.getElementById('scanTitle').className = "text-xl font-bold mb-3 text-blue-600";
+                    document.getElementById('scanStudentInfo').innerHTML = `<b>학번:</b> ${currentData.studentId} <br> <b>이름:</b> ${currentData.name} <br> <b>전화:</b> ${currentData.phone}`;
+                    
+                    document.getElementById('rentInputArea').classList.remove('hidden');
+                    document.getElementById('returnInfoArea').classList.add('hidden');
+                    document.getElementById('umbrellaInput').value = ''; // 입력칸 초기화
+
+                    let btn = document.getElementById('btnConfirm');
+                    btn.innerText = "대여 완료 처리하기";
+                    btn.className = "flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold text-lg";
+                    btn.onclick = processRent;
+                    btn.disabled = false;
+
+                } else if (currentData.type === 'return') {
+                    // --- 반납 처리 화면 세팅 ---
+                    document.getElementById('scanTitle').innerText = "🔄 반납 신청 확인";
+                    document.getElementById('scanTitle').className = "text-xl font-bold mb-3 text-green-600";
+                    document.getElementById('scanStudentInfo').innerHTML = `<b>학번:</b> ${currentData.studentId} <br> <b>이름:</b> ${currentData.name}`;
+                    
+                    document.getElementById('rentInputArea').classList.add('hidden');
+                    const returnArea = document.getElementById('returnInfoArea');
+                    returnArea.classList.remove('hidden');
+                    returnArea.innerText = "대여 정보 확인 중...";
+
+                    let btn = document.getElementById('btnConfirm');
+                    btn.disabled = true; // 정보 불러오기 전까지 클릭 금지
+
+                    // DB에서 해당 학생이 빌려간 우산 번호 찾기
+                    const { data, error } = await supabase
+                        .from('umbrella_rentals')
+                        .select('umbrella_no')
+                        .eq('student_id', currentData.studentId)
+                        .eq('status', 'rented')
+                        .single();
+
+                    if (data) {
+                        returnArea.innerText = `반납할 우산 번호: [ ${data.umbrella_no} ]`;
+                        btn.innerText = "반납 완료 처리하기";
+                        btn.className = "flex-1 py-3 bg-green-600 hover:bg-green-700 text-white rounded font-bold text-lg";
+                        btn.onclick = processReturn;
+                        btn.disabled = false;
+                    } else {
+                        returnArea.innerText = "⚠️ 대여 중인 우산 내역이 없습니다.";
+                        btn.innerText = "처리 불가";
+                        btn.className = "flex-1 py-3 bg-gray-400 text-white rounded font-bold text-lg";
+                    }
+                }
+            } catch (err) {
+                alert("잘못된 형식의 QR코드입니다.");
+                cancelScan();
+            }
         }
+
+        html5QrcodeScanner.render(onScanSuccess, (error) => {});
+
+        // 대여 DB 저장
+        async function processRent() {
+            const umbrellaNo = document.getElementById('umbrellaInput').value.trim();
+            if (!umbrellaNo) return alert("지급할 우산 번호를 입력해주세요.");
+
+            const { error } = await supabase.from('umbrella_rentals').insert([
+                { student_id: currentData.studentId, name: currentData.name, phone: currentData.phone, umbrella_no: umbrellaNo, status: 'rented' }
+            ]);
+            
+            if (error) return alert("오류 발생: " + error.message);
+            alert("대여가 완료되었습니다!");
+            resetAndResume();
+        }
+
+        // 반납 DB 업데이트
+        async function processReturn() {
+            const { error } = await supabase
+                .from('umbrella_rentals')
+                .update({ status: 'returned' })
+                .eq('student_id', currentData.studentId)
+                .eq('status', 'rented');
+                
+            if (error) return alert("오류 발생: " + error.message);
+            alert("반납이 완료되었습니다!");
+            resetAndResume();
+        }
+
+        // 취소 버튼
+        function cancelScan() {
+            resetAndResume();
+        }
+
+        // 화면 초기화 및 스캐너 재시작
+        function resetAndResume() {
+            document.getElementById('scanResultCard').classList.add('hidden');
+            currentData = null;
+            fetchStatus();
+            setTimeout(() => html5QrcodeScanner.resume(), 1000);
+        }
+
+        // 현황판 불러오기
+        async function fetchStatus() {
+            const { data, error } = await supabase
+                .from('umbrella_rentals')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) return;
+
+            const tbody = document.getElementById('statusTable');
+            tbody.innerHTML = '';
+            
+            data.forEach(row => {
+                let statusText = row.status === 'rented' ? '<span class="text-red-500 font-bold">대여중</span>' : '<span class="text-green-500 font-bold">반납완료</span>';
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="p-2 border">${row.student_id}</td>
+                        <td class="p-2 border">${row.name}</td>
+                        <td class="p-2 border">${row.umbrella_no}</td>
+                        <td class="p-2 border">${statusText}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        fetchStatus();
+    </script>
+</body>
+</html>
