@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>우산 대여 관리자</title>
+    <title>우산 대여 관리자 (스캐너 포함)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -12,7 +12,12 @@
     <div class="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow-md">
         <h1 class="text-2xl font-bold mb-6 text-center text-red-600">🛡️ 관리자: QR 스캐너</h1>
         
-        <div id="reader" class="mb-6 w-full max-w-md mx-auto"></div>
+        <div class="mb-6 w-full max-w-md mx-auto">
+            <div id="reader" class="rounded-lg overflow-hidden border-2 border-gray-300"></div>
+            <p class="text-sm text-gray-500 text-center mt-2">
+                ※ 카메라가 안 켜지면 <b>'Scan an Image File'</b>을 눌러 QR 이미지를 업로드하세요.
+            </p>
+        </div>
 
         <div id="scanResultCard" class="hidden mb-6 p-4 border-2 border-blue-500 rounded-lg bg-blue-50">
             <h3 id="scanTitle" class="text-xl font-bold mb-3">스캔 결과</h3>
@@ -51,13 +56,23 @@
     </div>
 
     <script>
+        // Supabase 설정
         const SUPABASE_URL = 'https://urzbonndueqylygtzlus.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_rZYklPBEFvoKZxatf_xAig_ceWd_epI';
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
-        let currentData = null; // 스캔된 데이터 저장용
+        let currentData = null; 
 
+        // ==========================================
+        // 📷 QR 스캐너 실행 설정
+        // ==========================================
+        let html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader", 
+            { fps: 10, qrbox: {width: 250, height: 250} }, 
+            /* verbose= */ false
+        );
+
+        // QR 코드를 성공적으로 읽었을 때 실행되는 함수
         async function onScanSuccess(decodedText) {
             html5QrcodeScanner.pause(); // 스캔 일시정지
 
@@ -66,14 +81,14 @@
                 document.getElementById('scanResultCard').classList.remove('hidden');
 
                 if (currentData.type === 'rent') {
-                    // --- 대여 처리 화면 세팅 ---
+                    // 대여 모드
                     document.getElementById('scanTitle').innerText = "☂️ 대여 신청 확인";
                     document.getElementById('scanTitle').className = "text-xl font-bold mb-3 text-blue-600";
                     document.getElementById('scanStudentInfo').innerHTML = `<b>학번:</b> ${currentData.studentId} <br> <b>이름:</b> ${currentData.name} <br> <b>전화:</b> ${currentData.phone}`;
                     
                     document.getElementById('rentInputArea').classList.remove('hidden');
                     document.getElementById('returnInfoArea').classList.add('hidden');
-                    document.getElementById('umbrellaInput').value = ''; // 입력칸 초기화
+                    document.getElementById('umbrellaInput').value = ''; 
 
                     let btn = document.getElementById('btnConfirm');
                     btn.innerText = "대여 완료 처리하기";
@@ -82,7 +97,7 @@
                     btn.disabled = false;
 
                 } else if (currentData.type === 'return') {
-                    // --- 반납 처리 화면 세팅 ---
+                    // 반납 모드
                     document.getElementById('scanTitle').innerText = "🔄 반납 신청 확인";
                     document.getElementById('scanTitle').className = "text-xl font-bold mb-3 text-green-600";
                     document.getElementById('scanStudentInfo').innerHTML = `<b>학번:</b> ${currentData.studentId} <br> <b>이름:</b> ${currentData.name}`;
@@ -93,9 +108,9 @@
                     returnArea.innerText = "대여 정보 확인 중...";
 
                     let btn = document.getElementById('btnConfirm');
-                    btn.disabled = true; // 정보 불러오기 전까지 클릭 금지
+                    btn.disabled = true;
 
-                    // DB에서 해당 학생이 빌려간 우산 번호 찾기
+                    // DB에서 우산 번호 찾기
                     const { data, error } = await supabase
                         .from('umbrella_rentals')
                         .select('umbrella_no')
@@ -116,14 +131,18 @@
                     }
                 }
             } catch (err) {
-                alert("잘못된 형식의 QR코드입니다.");
+                alert("우리 학교 양심우산 QR코드가 아닙니다.");
                 cancelScan();
             }
         }
 
-        html5QrcodeScanner.render(onScanSuccess, (error) => {});
+        // 스캐너 화면에 렌더링 시작
+        html5QrcodeScanner.render(onScanSuccess, (error) => {
+            // 스캔 실패(QR이 화면에 없을 때)는 에러를 무시합니다.
+        });
 
-        // 대여 DB 저장
+        // ==========================================
+
         async function processRent() {
             const umbrellaNo = document.getElementById('umbrellaInput').value.trim();
             if (!umbrellaNo) return alert("지급할 우산 번호를 입력해주세요.");
@@ -133,11 +152,10 @@
             ]);
             
             if (error) return alert("오류 발생: " + error.message);
-            alert("대여가 완료되었습니다!");
+            alert("대여 처리가 완료되었습니다!");
             resetAndResume();
         }
 
-        // 반납 DB 업데이트
         async function processReturn() {
             const { error } = await supabase
                 .from('umbrella_rentals')
@@ -146,16 +164,14 @@
                 .eq('status', 'rented');
                 
             if (error) return alert("오류 발생: " + error.message);
-            alert("반납이 완료되었습니다!");
+            alert("반납 처리가 완료되었습니다!");
             resetAndResume();
         }
 
-        // 취소 버튼
         function cancelScan() {
             resetAndResume();
         }
 
-        // 화면 초기화 및 스캐너 재시작
         function resetAndResume() {
             document.getElementById('scanResultCard').classList.add('hidden');
             currentData = null;
@@ -163,7 +179,6 @@
             setTimeout(() => html5QrcodeScanner.resume(), 1000);
         }
 
-        // 현황판 불러오기
         async function fetchStatus() {
             const { data, error } = await supabase
                 .from('umbrella_rentals')
