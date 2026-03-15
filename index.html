@@ -52,7 +52,6 @@
                 return;
             }
 
-            // QR에 담을 데이터 (JSON 형식)
             const qrData = JSON.stringify({
                 type: mode,
                 studentId: studentId,
@@ -60,15 +59,17 @@
                 phone: mode === 'rent' ? phone : null
             });
 
-            // 기존 QR 지우고 새로 생성
-            document.getElementById('qrcode').innerHTML = "";
-            new QRCode(document.getElementById("qrcode"), {
-                text: qrData,
-                width: 200,
-                height: 200,
-            });
-
+            // 숨김 해제 후 QR 생성 (정상 작동 로직 유지)
             document.getElementById('qrSection').classList.remove('hidden');
+            document.getElementById('qrcode').innerHTML = "";
+            
+            setTimeout(() => {
+                new QRCode(document.getElementById("qrcode"), {
+                    text: qrData,
+                    width: 200,
+                    height: 200,
+                });
+            }, 50);
         }
     </script>
 </body>
