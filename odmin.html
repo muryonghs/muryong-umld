@@ -19,7 +19,9 @@
         <h2 class="text-center fw-bold mb-4 text-primary">☂️ 양심우산 관리자 보드</h2>
         
         <div class="header-actions">
-            <button class="btn btn-success btn-lg fw-bold shadow-sm" onclick="openScannerModal()">📷 우산 대여/반납 QR 스캔</button>
+            <button class="btn btn-success btn-lg fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#scannerModal">
+                📷 우산 대여/반납 QR 스캔
+            </button>
         </div>
         
         <div class="table-responsive">
@@ -33,8 +35,7 @@
                         <th>대여 일시</th>
                     </tr>
                 </thead>
-                <tbody id="reserve-list">
-                    </tbody>
+                <tbody id="reserve-list"></tbody>
             </table>
         </div>
     </div>
@@ -44,13 +45,13 @@
           <div class="modal-content">
             <div class="modal-header bg-success text-white">
               <h5 class="modal-title fw-bold">📷 학생 QR 패스 스캔</h5>
-              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" onclick="stopScanner()"></button>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body text-center p-0 bg-dark">
                 <div id="qr-reader"></div>
             </div>
             <div class="modal-footer justify-content-center">
-              <button type="button" class="btn btn-secondary w-50 fw-bold" data-bs-dismiss="modal" onclick="stopScanner()">카메라 끄기</button>
+              <button type="button" class="btn btn-secondary w-50 fw-bold" data-bs-dismiss="modal">닫기</button>
             </div>
           </div>
         </div>
@@ -61,61 +62,54 @@
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
     <script>
-        // Supabase 설정
         const SUPABASE_URL = 'https://urzbonndueqylygtzlus.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_rZYklPBEFvoKZxatf_xAig_ceWd_epI';
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let scannerModal;
         let html5QrcodeScanner;
+        
+        // 부트스트랩 모달 객체 가져오기
+        const scannerModalEl = document.getElementById('scannerModal');
+        const scannerModalInstance = new bootstrap.Modal(scannerModalEl);
 
-        // 1. 스캐너 모달창 열기
-        function openScannerModal() {
-            scannerModal = new bootstrap.Modal(document.getElementById('scannerModal'));
-            scannerModal.show();
-            
-            // 모달창이 열리는 애니메이션 시간을 벌어준 뒤 카메라 켬
-            setTimeout(() => {
+        // [핵심 변경] 모달창이 '완전히 열린 후'에 카메라를 켭니다.
+        scannerModalEl.addEventListener('shown.bs.modal', () => {
+            try {
                 html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
                 html5QrcodeScanner.render(onScanSuccess, onScanFailure);
-            }, 500);
-        }
+            } catch (error) {
+                console.error("카메라 로드 에러:", error);
+            }
+        });
 
-        // 2. 스캐너 끄기
-        function stopScanner() {
+        // 모달창이 닫힐 때 카메라 끄기
+        scannerModalEl.addEventListener('hidden.bs.modal', () => {
             if (html5QrcodeScanner) {
                 html5QrcodeScanner.clear();
             }
-        }
+        });
 
-        // 3. QR 스캔 성공 시 자동 처리 로직
-        async function onScanSuccess(decodedText, decodedResult) {
-            // 스캔이 완료되면 즉시 카메라를 끄고 모달창을 닫음
-            stopScanner();
-            scannerModal.hide();
+        async function onScanSuccess(decodedText) {
+            // QR 인식 성공 시: 카메라 끄고 모달 닫기
+            if (html5QrcodeScanner) html5QrcodeScanner.clear();
+            scannerModalInstance.hide();
 
             try {
                 const data = JSON.parse(decodedText);
 
                 if (data.type === 'rent') {
-                    // --- 대여 처리 ---
                     let umbrellaNo = prompt(`☂️ [대여 신청]\n\n이름: ${data.name}\n학번: ${data.studentId}\n\n학생에게 지급할 우산 번호를 입력하세요:`);
-                    
                     if (umbrellaNo) {
                         const { error } = await supabase.from('umbrella_rentals').insert([
                             { student_id: data.studentId, name: data.name, phone: data.phone, umbrella_no: umbrellaNo, status: 'rented' }
                         ]);
                         if (error) throw error;
-                        alert(`✅ ${data.name} 학생, ${umbrellaNo}번 우산 대여가 완료되었습니다!`);
-                        loadData(); // 표 새로고침
-                    } else {
-                        alert("대여가 취소되었습니다.");
+                        alert(`✅ 대여 완료!`);
+                        loadData(); 
                     }
                 } 
                 else if (data.type === 'return') {
-                    // --- 반납 처리 ---
-                    // DB에서 해당 학생이 빌려간 우산 번호를 찾음
-                    const { data: rentalData, error: findError } = await supabase
+                    const { data: rentalData } = await supabase
                         .from('umbrella_rentals')
                         .select('umbrella_no')
                         .eq('student_id', data.studentId)
@@ -131,10 +125,10 @@
                                 .eq('status', 'rented');
                             if (updateError) throw updateError;
                             alert('✅ 반납 처리가 완료되었습니다!');
-                            loadData(); // 표 새로고침
+                            loadData(); 
                         }
                     } else {
-                        alert(`⚠️ ${data.name}(${data.studentId}) 학생은 현재 대여 중인 우산 내역이 없습니다.`);
+                        alert(`⚠️ 대여 중인 우산 내역이 없습니다.`);
                     }
                 }
             } catch (err) {
@@ -142,27 +136,20 @@
             }
         }
 
-        function onScanFailure(error) {
-            // 스캔 중 화면에 QR이 없을 때 나는 에러는 무시
-        }
+        function onScanFailure(error) {}
 
-        // 날짜/시간 예쁘게 포맷팅하는 함수
         function formatTime(dateStr) {
             const d = new Date(dateStr);
             return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
         }
 
-        // 4. 현황판 불러오기
         async function loadData() {
             const { data, error } = await supabase
                 .from('umbrella_rentals')
                 .select('*')
                 .order('created_at', { ascending: false });
 
-            if (error) {
-                console.error(error);
-                return;
-            }
+            if (error) return;
 
             const list = document.getElementById('reserve-list');
             list.innerHTML = '';
@@ -172,7 +159,7 @@
                     ? '<span class="badge bg-danger">대여 중</span>' 
                     : '<span class="badge bg-primary">반납 완료</span>';
                 
-                let rowHtml = `
+                list.innerHTML += `
                     <tr>
                         <td class="fw-bold">${row.student_id}</td>
                         <td>${row.name}</td>
@@ -181,11 +168,9 @@
                         <td class="text-muted small">${formatTime(row.created_at)}</td>
                     </tr>
                 `;
-                list.innerHTML += rowHtml;
             });
         }
 
-        // 페이지 켜지자마자 데이터 불러오기
         loadData();
     </script>
 </body>
