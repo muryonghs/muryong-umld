@@ -2,93 +2,139 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>관리자 - 양심우산 시스템</title>
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        /* 모바일 앱 스타일 기본 설정 */
+        :root { --primary: #3b82f6; --danger: #ef4444; --success: #10b981; --bg: #f8fafc; --text: #1e293b; }
+        body { font-family: 'Pretendard', sans-serif; background-color: var(--bg); margin: 0; padding: 0; color: var(--text); padding-bottom: 40px; }
         
-        /* 상단 헤더 영역 */
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 25px; }
-        .header h2 { margin: 0; font-weight: 800; color: #2c3e50; }
-        .action-buttons { display: flex; gap: 10px; }
+        /* 상단 고정 헤더 */
+        .app-header { background: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .app-header h1 { margin: 0; font-size: 18px; font-weight: 800; }
+        .header-btns { display: flex; gap: 8px; }
+        .icon-btn { background: #f1f5f9; border: none; padding: 8px 12px; border-radius: 8px; font-size: 14px; font-weight: bold; color: #475569; cursor: pointer; }
+        .icon-btn.danger { background: #fee2e2; color: var(--danger); }
+
+        /* 메인 콘텐츠 영역 */
+        .content { padding: 20px; }
+
+        /* 📷 커스텀 스캐너 버튼 & 영역 */
+        .scanner-section { background: white; border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 24px; }
+        #reader-container { display: none; margin-top: 15px; }
+        #reader { width: 100%; border-radius: 12px; overflow: hidden; border: 2px solid var(--primary); }
         
-        /* 버튼 디자인 */
-        .btn { padding: 10px 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 14px; }
-        .btn-refresh { background-color: #f1f5f9; color: #475569; }
-        .btn-refresh:hover { background-color: #e2e8f0; }
-        .btn-danger { background-color: #fee2e2; color: #ef4444; border: 1px solid #fca5a5; }
-        .btn-danger:hover { background-color: #fca5a5; color: white; }
+        .btn-scan { background: var(--primary); color: white; border: none; width: 100%; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+        .btn-scan:active { transform: scale(0.98); }
+        .btn-scan.stop { background: #64748b; box-shadow: none; margin-top: 10px; padding: 12px; }
+
+        /* 📝 모바일 카드형 리스트 디자인 */
+        .list-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; padding: 0 4px; }
+        .list-header h3 { margin: 0; font-size: 16px; color: #64748b; }
         
-        /* 스캐너 영역 */
-        #reader { width: 100%; max-width: 450px; margin: 0 auto 30px auto; border: 3px dashed #cbd5e1 !important; border-radius: 16px; overflow: hidden; }
+        .rental-card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; flex-direction: column; gap: 10px; border-left: 4px solid #cbd5e1; }
+        .rental-card.status-rent { border-left-color: var(--danger); }
+        .rental-card.status-return { border-left-color: var(--success); }
+
+        .card-top { display: flex; justify-content: space-between; align-items: center; }
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 800; }
+        .badge.rent { background: #fee2e2; color: var(--danger); }
+        .badge.return { background: #dcfce7; color: var(--success); }
+        .time-text { font-size: 12px; color: #94a3b8; }
+
+        .card-body { display: flex; justify-content: space-between; align-items: center; }
+        .student-info { display: flex; flex-direction: column; }
+        .s-name { font-size: 18px; font-weight: 800; color: #0f172a; }
+        .s-id { font-size: 13px; color: #64748b; margin-top: 2px; }
         
-        /* 데이터 테이블 디자인 */
-        .table-wrapper { overflow-x: auto; border-radius: 12px; border: 1px solid #e2e8f0; }
-        table { width: 100%; border-collapse: collapse; text-align: center; white-space: nowrap; }
-        th { background-color: #f8fafc; color: #475569; font-weight: 700; padding: 15px; font-size: 14px; border-bottom: 2px solid #e2e8f0; }
-        td { padding: 15px; font-size: 15px; border-bottom: 1px solid #f1f5f9; color: #334155; }
-        tr:hover { background-color: #f8fafc; }
-        
-        /* 상태 뱃지 */
-        .badge { padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; display: inline-block; }
-        .badge-rent { background: #fee2e2; color: #ef4444; }
-        .badge-return { background: #dcfce7; color: #16a34a; }
+        .umbrella-num { background: #f8fafc; padding: 8px 14px; border-radius: 10px; font-size: 14px; font-weight: bold; color: var(--primary); text-align: right; }
+        .umbrella-num span { display: block; font-size: 11px; color: #94a3b8; font-weight: normal; margin-bottom: 2px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h2>☂️ 관리자 대시보드</h2>
-            <div class="action-buttons">
-                <button class="btn btn-refresh" onclick="fetchRentals()">🔄 새로고침</button>
-                <button class="btn btn-danger" onclick="resetList()">🗑️ 명단 초기화</button>
+
+    <header class="app-header">
+        <h1>☂️ 관리자 홈</h1>
+        <div class="header-btns">
+            <button class="icon-btn" onclick="fetchRentals()">🔄 갱신</button>
+            <button class="icon-btn danger" onclick="resetList()">🗑️ 초기화</button>
+        </div>
+    </header>
+
+    <div class="content">
+        <div class="scanner-section">
+            <button id="start-btn" class="btn-scan" onclick="startScanner()">
+                <span style="font-size: 20px;">📷</span> 학생 QR코드 스캔하기
+            </button>
+            
+            <div id="reader-container">
+                <div id="reader"></div>
+                <button id="stop-btn" class="btn-scan stop" onclick="stopScanner()">스캐너 닫기</button>
             </div>
         </div>
 
-        <div id="reader"></div>
-
-        <div class="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th>상태</th>
-                        <th>학번</th>
-                        <th>이름</th>
-                        <th>우산번호</th>
-                        <th>대여/반납 일시</th>
-                    </tr>
-                </thead>
-                <tbody id="rental-list"></tbody>
-            </table>
+        <div class="list-header">
+            <h3>최근 이용 내역</h3>
         </div>
+        <div id="rental-list">
+            </div>
     </div>
 
     <script>
         const myDb = supabase.createClient('https://urzbonndueqylygtzlus.supabase.co', 'sb_publishable_rZYklPBEFvoKZxatf_xAig_ceWd_epI');
+        let html5QrCode;
         let isProcessing = false;
 
-        let html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
-        html5QrcodeScanner.render(onScanSuccess);
+        // 📷 커스텀 스캐너 시작 함수 (깔끔한 UI를 위해 코어 엔진만 사용)
+        function startScanner() {
+            document.getElementById('start-btn').style.display = 'none';
+            document.getElementById('reader-container').style.display = 'block';
+            
+            html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start(
+                { facingMode: "environment" }, // 후면 카메라 우선
+                { fps: 10, qrbox: { width: 220, height: 220 } },
+                onScanSuccess,
+                (errorMessage) => { /* 자잘한 스캔 에러 무시 */ }
+            ).catch((err) => {
+                alert("카메라를 켤 수 없습니다. 권한을 확인해주세요.");
+                stopScanner();
+            });
+        }
 
+        // 📷 스캐너 정지 함수
+        function stopScanner() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    document.getElementById('start-btn').style.display = 'flex';
+                    document.getElementById('reader-container').style.display = 'none';
+                }).catch(err => console.error(err));
+            } else {
+                document.getElementById('start-btn').style.display = 'flex';
+                document.getElementById('reader-container').style.display = 'none';
+            }
+        }
+
+        // ✅ QR 인식 성공 시 처리
         async function onScanSuccess(decodedText) {
             if (isProcessing) return;
             isProcessing = true;
+            stopScanner(); // 스캔 성공 시 카메라 잠깐 끄기
 
             try {
                 const data = JSON.parse(decodedText);
                 
                 if (data.action === 'rent') {
-                    const umbrellaNum = prompt(`[대여] ${data.student_name} 학생에게 빌려줄 우산 번호:`);
+                    const umbrellaNum = prompt(`☂️ [대여 승인]\n${data.student_name} 학생에게 빌려줄 우산 번호를 입력하세요:`);
                     if (umbrellaNum) {
                         const { error } = await myDb.from('umbrella_rentals').insert([
                             { student_id: data.student_id, student_name: data.student_name, phone_number: data.phone_number, umbrella_number: umbrellaNum, status: '대여중' }
                         ]);
                         if (error) throw error;
-                        alert('✅ 대여 처리되었습니다.');
+                        alert('✅ 대여가 완료되었습니다.');
                     }
                 } else if (data.action === 'return') {
                     const { error } = await myDb.from('umbrella_rentals')
@@ -97,61 +143,76 @@
                         .eq('status', '대여중');
                     
                     if (error) throw error;
-                    alert(`✅ ${data.student_name} 학생 반납 처리 완료!`);
+                    alert(`✅ ${data.student_name} 학생의 우산이 반납되었습니다.`);
                 }
             } catch (err) {
                 console.error(err);
-                alert('유효하지 않은 QR이거나 DB 오류입니다.');
+                alert('유효하지 않은 QR이거나 DB 연결에 실패했습니다.');
             } finally {
                 fetchRentals();
                 setTimeout(() => { isProcessing = false; }, 2000);
             }
         }
 
+        // 📝 카드형 리스트 불러오기
         async function fetchRentals() {
             const { data, error } = await myDb.from('umbrella_rentals').select('*').order('rent_date', { ascending: false }).limit(30);
             if (error) return console.error(error);
 
-            const tbody = document.getElementById('rental-list');
-            tbody.innerHTML = '';
+            const listContainer = document.getElementById('rental-list');
+            listContainer.innerHTML = '';
             
             data.forEach(row => {
                 const isRent = row.status === '대여중';
-                const badgeClass = isRent ? 'badge-rent' : 'badge-return';
-                // 대여중이면 대여시간을, 반납완료면 반납시간을 표시
-                const timeStr = new Date(isRent ? row.rent_date : row.return_date).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const statusClass = isRent ? 'status-rent' : 'status-return';
+                const badgeClass = isRent ? 'rent' : 'return';
                 
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><span class="badge ${badgeClass}">${row.status}</span></td>
-                    <td style="font-weight: bold;">${row.student_id}</td>
-                    <td>${row.student_name}</td>
-                    <td><strong style="color: #2563eb;">${row.umbrella_number || '-'}</strong></td>
-                    <td style="color: #64748b; font-size: 13px;">${timeStr}</td>
+                // 시간 포맷 (예: 10/24 14:30)
+                const dateObj = new Date(isRent ? row.rent_date : row.return_date);
+                const timeStr = `${dateObj.getMonth()+1}/${dateObj.getDate()} ${String(dateObj.getHours()).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
+                
+                // 모바일 최적화 카드 HTML 구성
+                const cardHTML = `
+                    <div class="rental-card ${statusClass}">
+                        <div class="card-top">
+                            <span class="badge ${badgeClass}">${row.status}</span>
+                            <span class="time-text">${isRent ? '대여' : '반납'}일시: ${timeStr}</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="student-info">
+                                <span class="s-name">${row.student_name}</span>
+                                <span class="s-id">${row.student_id}</span>
+                            </div>
+                            <div class="umbrella-num">
+                                <span>우산 번호</span>
+                                ${row.umbrella_number || '-'}번
+                            </div>
+                        </div>
+                    </div>
                 `;
-                tbody.appendChild(tr);
+                listContainer.innerHTML += cardHTML;
             });
         }
 
-        // 🚨 명단 초기화 (안전장치 포함)
+        // 🚨 명단 초기화
         async function resetList() {
-            if(confirm("⚠️ 정말 모든 대여/반납 기록을 영구적으로 삭제하시겠습니까?\n이 작업은 절대 되돌릴 수 없습니다.")) {
-                const confirmWord = prompt("초기화를 진행하려면 입력창에 '초기화' 라고 똑같이 입력해주세요.");
+            if(confirm("⚠️ [경고] 모든 대여/반납 기록을 영구적으로 삭제하시겠습니까?")) {
+                const confirmWord = prompt("진행하려면 '초기화' 라고 입력해주세요.");
                 if(confirmWord === '초기화') {
-                    // id가 0이 아닌 모든 데이터를 삭제 (전체 삭제)
                     const { error } = await myDb.from('umbrella_rentals').delete().neq('id', 0);
                     if(!error) {
-                        alert("✅ 모든 명단이 깔끔하게 초기화되었습니다.");
-                        fetchRentals(); // 테이블 다시 불러오기 (빈 화면)
+                        alert("✅ 초기화 완료");
+                        fetchRentals();
                     } else {
-                        alert("삭제 중 오류가 발생했습니다: " + error.message);
+                        alert("오류: " + error.message);
                     }
                 } else {
-                    alert("입력한 단어가 틀려 초기화가 취소되었습니다.");
+                    alert("취소되었습니다.");
                 }
             }
         }
 
+        // 첫 로딩 시 리스트 불러오기
         fetchRentals();
     </script>
 </body>
