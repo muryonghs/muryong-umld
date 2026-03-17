@@ -47,7 +47,7 @@
     </table>
 
     <script>
-        // Supabase 초기화
+        // 🚨 이 설정 코드는 딱 한 번만 있어야 합니다!
         const supabaseUrl = 'https://urzbonndueqylygtzlus.supabase.co';
         const supabaseKey = 'sb_publishable_rZYklPBEFvoKZxatf_xAig_ceWd_epI';
         const supabase = supabaseCreateClient.createClient(supabaseUrl, supabaseKey);
@@ -55,23 +55,21 @@
         let html5QrCode;
         let isProcessing = false;
 
-        // 스캐너 시작 함수 (모바일 후면 카메라 우선)
+        // 스캐너 시작 함수
         function startScanner() {
-            // 카메라 화면 영역 초기화
             document.getElementById('reader').innerHTML = ""; 
             html5QrCode = new Html5Qrcode("reader");
 
             html5QrCode.start(
-                { facingMode: "environment" }, // 모바일 후면 카메라 작동
+                { facingMode: "environment" }, 
                 { fps: 10, qrbox: { width: 250, height: 250 } },
                 onScanSuccess,
-                (errorMessage) => { /* 스캔 중 발생하는 자잘한 에러는 무시 */ }
+                (errorMessage) => { /* 무시 */ }
             ).then(() => {
-                // 카메라가 성공적으로 켜지면 버튼 바꾸기
                 document.getElementById('start-btn').style.display = 'none';
                 document.getElementById('stop-btn').style.display = 'block';
             }).catch((err) => {
-                alert("카메라를 켤 수 없습니다.\n(https 환경인지, 카메라 권한을 허용했는지 확인해주세요!)\n상세오류: " + err);
+                alert("카메라를 켤 수 없습니다.\n(https 환경인지 확인해주세요!)\n상세오류: " + err);
                 document.getElementById('reader').innerHTML = "카메라 작동 실패";
             });
         }
@@ -87,13 +85,12 @@
             }
         }
 
-        // 스캔 성공 시 실행되는 함수
+        // 스캔 성공 시
         async function onScanSuccess(decodedText) {
             if (isProcessing) return;
             isProcessing = true;
             
-            // 스캔 성공 시 잠시 스캐너 멈춤 (연속 스캔 방지)
-            stopScanner();
+            stopScanner(); // 스캔 성공 시 잠시 멈춤
 
             try {
                 const data = JSON.parse(decodedText);
@@ -137,7 +134,7 @@
                 .from('umbrella_rentals')
                 .select('*')
                 .order('rent_date', { ascending: false })
-                .limit(20); // 모바일 화면을 위해 최근 20개만 표시
+                .limit(20);
 
             if (error) {
                 console.error(error);
@@ -159,7 +156,6 @@
             });
         }
 
-        // 페이지 로드 시 현황 바로 불러오기
         fetchRentals();
     </script>
 </body>
