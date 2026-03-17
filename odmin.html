@@ -170,7 +170,7 @@
                 const data = JSON.parse(decodedText);
                 
                 if (data.action === 'rent') {
-                    const umbrellaNum = prompt(`☂️ [대여 승인]\n${data.student_name} 학생에게 빌려줄 우산 번호를 입력하세요:`);
+                    const umbrellaNum = prompt(`[대여 승인]\n${data.student_name} 학생에게 빌려줄 우산 번호를 입력하세요:`);
                     if (umbrellaNum) {
                         
                         // 💡 1. [핵심] 우산 중복 대여 방지 (이미 누가 빌려갔는지 확인)
@@ -182,7 +182,7 @@
                         if (checkErr) throw checkErr;
 
                         if (existing && existing.length > 0) {
-                            alert(`❌ [대여 불가] ${umbrellaNum}번 우산은 현재 다른 학생이 대여 중입니다!\n반납 확인 후 다시 시도해 주세요.`);
+                            alert(`[대여 불가] ${umbrellaNum}번 우산은 현재 다른 학생이 대여 중입니다!\n반납 확인 후 다시 시도해 주세요.`);
                             return; // 함수를 즉시 종료하고 밑으로 안 내려감
                         }
 
@@ -198,7 +198,7 @@
                             }
                         ]);
                         if (error) throw error;
-                        alert('✅ 대여가 완료되었습니다.');
+                        alert('대여가 완료되었습니다.');
                     }
                 } else if (data.action === 'return') {
                     const { data: checkData, error: checkError } = await myDb.from('umbrella_rentals')
@@ -216,9 +216,9 @@
                             .eq('id', checkData[0].id);
                         
                         if (updateError) throw updateError;
-                        alert(`✅ ${data.student_name} 학생의 우산이 반납되었습니다.`);
+                        alert(`${data.student_name} 학생의 우산이 반납되었습니다.`);
                     } else {
-                        alert(`❌ 반납 실패!\n학번(${data.student_id})과 이름(${data.student_name})이 대여 시 입력한 정보와 일치하지 않거나 대여 중인 우산이 없습니다.`);
+                        alert(`반납 실패!\n학번(${data.student_id})과 이름(${data.student_name})이 대여 시 입력한 정보와 일치하지 않거나 대여 중인 우산이 없습니다.`);
                     }
                 }
             } catch (err) {
@@ -304,13 +304,13 @@
                 if(confirmWord === '초기화') {
                     const { error } = await myDb.from('umbrella_rentals').delete().neq('id', 0);
                     if(!error) {
-                        alert("✅ 초기화 완료");
+                        alert("초기화 완료");
                         fetchRentals();
                     } else {
                         alert("오류: " + error.message);
                     }
                 } else {
-                    alert("취소되었습니다.");
+                    alert("초기화가 취소되었습니다.");
                 }
             }
         }
