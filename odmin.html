@@ -22,7 +22,7 @@
         /* 메인 콘텐츠 영역 */
         .content { padding: 20px; }
 
-        /* 📷 커스텀 스캐너 버튼 & 영역 */
+        /* 📷 스캐너 버튼 & 영역 */
         .scanner-section { background: white; border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 24px; }
         #reader-container { display: none; margin-top: 15px; }
         #reader { width: 100%; border-radius: 12px; overflow: hidden; border: 2px solid var(--primary); }
@@ -35,7 +35,9 @@
         .list-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; padding: 0 4px; }
         .list-header h3 { margin: 0; font-size: 16px; color: #64748b; }
         
-        .rental-card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; flex-direction: column; gap: 10px; border-left: 4px solid #cbd5e1; }
+        /* 카드 클릭(터치) 효과 추가 */
+        .rental-card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; flex-direction: column; gap: 10px; border-left: 4px solid #cbd5e1; cursor: pointer; transition: transform 0.1s; }
+        .rental-card:active { transform: scale(0.98); background-color: #f8fafc; }
         .rental-card.status-rent { border-left-color: var(--danger); }
         .rental-card.status-return { border-left-color: var(--success); }
 
@@ -52,6 +54,23 @@
         
         .umbrella-num { background: #f8fafc; padding: 8px 14px; border-radius: 10px; font-size: 14px; font-weight: bold; color: var(--primary); text-align: right; }
         .umbrella-num span { display: block; font-size: 11px; color: #94a3b8; font-weight: normal; margin-bottom: 2px; }
+
+        /* 🔍 하단 팝업(바텀 시트) 모달 디자인 */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: none; align-items: flex-end; justify-content: center; }
+        .modal-content { background: white; width: 100%; max-width: 600px; border-radius: 24px 24px 0 0; padding: 25px; box-sizing: border-box; animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1); }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; }
+        .modal-header h3 { margin: 0; font-size: 20px; color: #0f172a; font-weight: 800; }
+        .close-btn { background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 16px; font-size: 16px; font-weight: bold; color: #64748b; cursor: pointer; }
+        
+        .detail-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 15px; }
+        .detail-label { color: #64748b; font-weight: bold; width: 80px; flex-shrink: 0; }
+        .detail-value { color: #1e293b; font-weight: 600; text-align: right; word-break: break-all; }
+        
+        .qr-section { margin-top: 20px; text-align: center; background: #f8fafc; padding: 15px; border-radius: 16px; }
+        .qr-section p { margin: 0 0 10px 0; font-size: 13px; color: #64748b; font-weight: bold; }
+        #m-qr-image { width: 120px; height: 120px; border-radius: 10px; border: 1px solid #e2e8f0; background: white; padding: 5px; }
     </style>
 </head>
 <body>
@@ -69,7 +88,6 @@
             <button id="start-btn" class="btn-scan" onclick="startScanner()">
                 <span style="font-size: 20px;">📷</span> 학생 QR코드 스캔하기
             </button>
-            
             <div id="reader-container">
                 <div id="reader"></div>
                 <button id="stop-btn" class="btn-scan stop" onclick="stopScanner()">스캐너 닫기</button>
@@ -79,8 +97,43 @@
         <div class="list-header">
             <h3>최근 이용 내역</h3>
         </div>
-        <div id="rental-list">
+        
+        <div id="rental-list"></div>
+    </div>
+
+    <div id="detail-modal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="m-name-title">상세 정보</h3>
+                <button class="close-btn" onclick="closeModal(event)">✕</button>
             </div>
+            
+            <div class="detail-row">
+                <span class="detail-label">학번</span>
+                <span class="detail-value" id="m-id"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">우산번호</span>
+                <span class="detail-value" id="m-umbrella" style="color: var(--primary);"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">전화번호</span>
+                <span class="detail-value" id="m-phone"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">대여일시</span>
+                <span class="detail-value" id="m-rent-date"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">반납일시</span>
+                <span class="detail-value" id="m-return-date"></span>
+            </div>
+            
+            <div class="qr-section">
+                <p>학생 고유 QR 코드</p>
+                <img id="m-qr-image" src="" alt="QR">
+            </div>
+        </div>
     </div>
 
     <script>
@@ -88,24 +141,22 @@
         let html5QrCode;
         let isProcessing = false;
 
-        // 📷 커스텀 스캐너 시작 함수 (깔끔한 UI를 위해 코어 엔진만 사용)
         function startScanner() {
             document.getElementById('start-btn').style.display = 'none';
             document.getElementById('reader-container').style.display = 'block';
             
             html5QrCode = new Html5Qrcode("reader");
             html5QrCode.start(
-                { facingMode: "environment" }, // 후면 카메라 우선
+                { facingMode: "environment" },
                 { fps: 10, qrbox: { width: 220, height: 220 } },
                 onScanSuccess,
-                (errorMessage) => { /* 자잘한 스캔 에러 무시 */ }
+                (errorMessage) => { }
             ).catch((err) => {
                 alert("카메라를 켤 수 없습니다. 권한을 확인해주세요.");
                 stopScanner();
             });
         }
 
-        // 📷 스캐너 정지 함수
         function stopScanner() {
             if (html5QrCode) {
                 html5QrCode.stop().then(() => {
@@ -118,11 +169,10 @@
             }
         }
 
-        // ✅ QR 인식 성공 시 처리
         async function onScanSuccess(decodedText) {
             if (isProcessing) return;
             isProcessing = true;
-            stopScanner(); // 스캔 성공 시 카메라 잠깐 끄기
+            stopScanner(); 
 
             try {
                 const data = JSON.parse(decodedText);
@@ -154,7 +204,13 @@
             }
         }
 
-        // 📝 카드형 리스트 불러오기
+        // 📅 날짜 포맷 함수 (년-월-일 시:분 형식)
+        function formatFullDate(dateString) {
+            if (!dateString) return '-';
+            const d = new Date(dateString);
+            return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        }
+
         async function fetchRentals() {
             const { data, error } = await myDb.from('umbrella_rentals').select('*').order('rent_date', { ascending: false }).limit(30);
             if (error) return console.error(error);
@@ -167,34 +223,63 @@
                 const statusClass = isRent ? 'status-rent' : 'status-return';
                 const badgeClass = isRent ? 'rent' : 'return';
                 
-                // 시간 포맷 (예: 10/24 14:30)
                 const dateObj = new Date(isRent ? row.rent_date : row.return_date);
                 const timeStr = `${dateObj.getMonth()+1}/${dateObj.getDate()} ${String(dateObj.getHours()).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
                 
-                // 모바일 최적화 카드 HTML 구성
-                const cardHTML = `
-                    <div class="rental-card ${statusClass}">
-                        <div class="card-top">
-                            <span class="badge ${badgeClass}">${row.status}</span>
-                            <span class="time-text">${isRent ? '대여' : '반납'}일시: ${timeStr}</span>
+                // 카드 요소 생성
+                const card = document.createElement('div');
+                card.className = `rental-card ${statusClass}`;
+                
+                // 💡 카드에 클릭(터치) 이벤트 연결
+                card.onclick = () => openModal(row);
+
+                card.innerHTML = `
+                    <div class="card-top">
+                        <span class="badge ${badgeClass}">${row.status}</span>
+                        <span class="time-text">${isRent ? '대여' : '반납'}일시: ${timeStr}</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="student-info">
+                            <span class="s-name">${row.student_name}</span>
+                            <span class="s-id">${row.student_id}</span>
                         </div>
-                        <div class="card-body">
-                            <div class="student-info">
-                                <span class="s-name">${row.student_name}</span>
-                                <span class="s-id">${row.student_id}</span>
-                            </div>
-                            <div class="umbrella-num">
-                                <span>우산 번호</span>
-                                ${row.umbrella_number || '-'}번
-                            </div>
+                        <div class="umbrella-num">
+                            <span>우산 번호</span>
+                            ${row.umbrella_number || '-'}번
                         </div>
                     </div>
                 `;
-                listContainer.innerHTML += cardHTML;
+                listContainer.appendChild(card);
             });
         }
 
-        // 🚨 명단 초기화
+        // 🔍 모달(바텀 시트) 열기 함수
+        function openModal(row) {
+            document.getElementById('m-name-title').innerText = `${row.student_name} 상세 정보`;
+            document.getElementById('m-id').innerText = row.student_id;
+            document.getElementById('m-umbrella').innerText = `${row.umbrella_number || '-'}번`;
+            document.getElementById('m-phone').innerText = row.phone_number || '미입력';
+            
+            document.getElementById('m-rent-date').innerText = formatFullDate(row.rent_date);
+            document.getElementById('m-return-date').innerText = formatFullDate(row.return_date);
+
+            // 해당 학생의 정보로 QR코드 재생성
+            const qrData = { student_id: row.student_id, student_name: row.student_name, phone_number: row.phone_number };
+            const encodedData = encodeURIComponent(JSON.stringify(qrData));
+            document.getElementById('m-qr-image').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodedData}&color=1e293b`;
+
+            // 모달 보이기
+            document.getElementById('detail-modal').style.display = 'flex';
+        }
+
+        // ✖️ 모달 닫기 함수
+        function closeModal(event) {
+            // 어두운 배경(overlay)이나 X 버튼을 클릭했을 때만 닫힘
+            if (event.target.id === 'detail-modal' || event.target.classList.contains('close-btn')) {
+                document.getElementById('detail-modal').style.display = 'none';
+            }
+        }
+
         async function resetList() {
             if(confirm("⚠️ [경고] 모든 대여/반납 기록을 영구적으로 삭제하시겠습니까?")) {
                 const confirmWord = prompt("진행하려면 '초기화' 라고 입력해주세요.");
@@ -212,7 +297,6 @@
             }
         }
 
-        // 첫 로딩 시 리스트 불러오기
         fetchRentals();
     </script>
 </body>
