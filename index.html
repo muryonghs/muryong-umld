@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>양심우산 학생 서비스</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; max-width: 400px; margin: 0 auto; padding: 20px; text-align: center; }
         .tab-container { display: flex; margin-bottom: 20px; }
@@ -13,7 +13,7 @@
         .form-group { margin-bottom: 15px; text-align: left; }
         input { width: 100%; padding: 10px; box-sizing: border-box; margin-top: 5px; }
         button { width: 100%; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
-        #qrcode { margin-top: 20px; display: flex; justify-content: center; }
+        #qr-container { margin-top: 20px; display: flex; justify-content: center; min-height: 200px; }
     </style>
 </head>
 <body>
@@ -40,10 +40,13 @@
         <button onclick="generateQR()">QR 코드 생성</button>
     </div>
 
-    <div id="qrcode"></div>
+    <div id="qr-container">
+        <canvas id="qrcode"></canvas>
+    </div>
 
     <script>
         let currentMode = 'rent';
+        let qrCodeInstance = null; // QR 객체를 저장할 변수
 
         function setMode(mode) {
             currentMode = mode;
@@ -52,7 +55,11 @@
             
             // 반납일 때는 전화번호 입력창 숨기기
             document.getElementById('phone-group').style.display = (mode === 'rent') ? 'block' : 'none';
-            document.getElementById('qrcode').innerHTML = ""; // QR 초기화
+            
+            // 모드가 바뀌면 기존 QR 지우기
+            if (qrCodeInstance) {
+                qrCodeInstance.value = ''; 
+            }
         }
 
         function generateQR() {
@@ -73,16 +80,12 @@
                 phone_number: phone
             };
 
-            document.getElementById('qrcode').innerHTML = ""; // 기존 QR 삭제
-            
-            // QR 코드 생성 (용량 초과 에러 해결을 위해 correctLevel 추가)
-            new QRCode(document.getElementById("qrcode"), {
-                text: JSON.stringify(qrData),
-                width: 200,
-                height: 200,
-                colorDark : "#000000",
-                colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.L // 핵심: 데이터 저장 공간 최대 확보
+            // QRious 라이브러리를 사용하여 QR 생성
+            qrCodeInstance = new QRious({
+                element: document.getElementById('qrcode'),
+                value: JSON.stringify(qrData), // 데이터를 문자열로 변환
+                size: 200,
+                level: 'L' // 오류 복원 수준 (L: 용량 최대로)
             });
             
             alert("QR 코드가 생성되었습니다. 관리자에게 보여주세요.");
