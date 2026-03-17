@@ -30,7 +30,6 @@
         #qr-container { margin-top: 30px; display: flex; flex-direction: column; align-items: center; min-height: 220px; position: relative; justify-content: center; }
         #qr-image { display: none; width: 180px; height: 180px; border: 2px solid #f1f5f9; padding: 15px; border-radius: 20px; background: white; box-shadow: 0 8px 25px rgba(0,0,0,0.05); animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         
-        /* 💡 빈 화면 웰컴 박스 디자인 추가 */
         #welcome-box { width: 100%; padding: 25px 15px; background: #f8fafc; border-radius: 16px; border: 2px dashed #cbd5e1; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.3s; }
         #welcome-box .emoji { font-size: 45px; margin: 0 0 10px 0; animation: float 3s ease-in-out infinite; }
         #welcome-box p { margin: 0; color: #64748b; font-size: 14px; font-weight: 600; line-height: 1.5; }
@@ -93,7 +92,7 @@
         <div id="qr-container">
             <div id="welcome-box">
                 <p class="emoji">☔️</p>
-                <p id="welcome-text">정보를 입력하고<br><strong>대여 패스 발급받기</strong>를 눌러주세요!</p>
+                <p id="welcome-text">정보를 입력하고<br><strong style="color:var(--primary);">대여 패스 발급받기</strong>를 눌러주세요!</p>
             </div>
 
             <img id="qr-image" src="" alt="학생 QR 코드">
@@ -148,7 +147,6 @@
             btn.innerText = mode === 'rent' ? '대여 패스 발급받기' : '반납 패스 발급받기';
             btn.className = mode === 'return' ? 'btn-return' : '';
             
-            // 💡 탭 변경 시 웰컴 박스 문구 및 색상 변경
             const welcomeText = document.getElementById('welcome-text');
             if (mode === 'rent') {
                 welcomeText.innerHTML = `정보를 입력하고<br><strong style="color:var(--primary);">대여 패스 발급받기</strong>를 눌러주세요!`;
@@ -157,13 +155,11 @@
             }
 
             resetScreen();
-            
-            // 탭 변경 시 웰컴 박스는 항상 보여주기
             document.getElementById('welcome-box').style.display = 'flex';
         }
 
         function resetScreen() {
-            document.getElementById('welcome-box').style.display = 'none'; // QR이나 성공화면이 뜰 땐 웰컴 숨기기
+            document.getElementById('welcome-box').style.display = 'none'; 
             document.getElementById('qr-image').style.display = 'none';
             document.getElementById('success-msg').style.display = 'none';
             if (checkInterval) clearInterval(checkInterval);
@@ -177,7 +173,8 @@
             return `내일 ${month}월 ${date}일 점심시간\n(12시 50분 ~ 1시 30분)`;
         }
 
-        function checkAndShowConsent() {
+        // 💡 함수 이름에 async 추가 (DB 통신을 기다리기 위해)
+        async function checkAndShowConsent() {
             const sid = document.getElementById('student_id').value;
             const sname = document.getElementById('student_name').value;
             const phone = document.getElementById('phone_number').value;
@@ -193,6 +190,23 @@
             }
 
             if (currentMode === 'rent') {
+                // 💡 [중복 대여 검사] 이 학생이 이미 빌려 간 우산이 있는지 DB 확인
+                const { data: existingRentals, error } = await studentDb.from('umbrella_rentals')
+                    .select('id')
+                    .eq('student_id', sid)
+                    .eq('status', '대여중');
+
+                if (error) {
+                    alert("데이터베이스 통신 오류가 발생했습니다. 다시 시도해 주세요.");
+                    return;
+                }
+
+                if (existingRentals && existingRentals.length > 0) {
+                    alert("이미 대여 중인 우산이 있습니다!\n기존 우산을 먼저 반납한 후 이용해 주세요.");
+                    return; // 팝업창을 띄우지 않고 여기서 즉시 중단
+                }
+
+                // 중복이 아니면 정상적으로 팝업 띄우기
                 calculatedReturnStr = getTomorrowString();
                 document.getElementById('modal-return-time').innerText = calculatedReturnStr;
                 document.getElementById('consent-modal').style.display = 'flex';
