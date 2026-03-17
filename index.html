@@ -4,18 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>양심우산 학생 서비스</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; max-width: 400px; margin: 0 auto; padding: 20px; text-align: center; }
         .tab-container { display: flex; margin-bottom: 20px; }
         .tab { flex: 1; padding: 10px; cursor: pointer; background: #eee; border-radius: 5px; margin: 0 5px; font-weight: bold; }
         .tab.active { background: #4CAF50; color: white; }
         .form-group { margin-bottom: 15px; text-align: left; }
-        input { width: 100%; padding: 10px; box-sizing: border-box; margin-top: 5px; }
+        input { width: 100%; padding: 10px; box-sizing: border-box; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; }
         button { width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; }
         
-        /* 외부 API로 불러온 QR 이미지를 예쁘게 담을 곳 */
-        #qr-container { margin-top: 20px; display: flex; justify-content: center; }
+        #qr-container { margin-top: 20px; display: flex; justify-content: center; flex-direction: column; align-items: center; min-height: 250px; }
         #qr-image { display: none; width: 200px; height: 200px; border: 1px solid #ddd; padding: 10px; border-radius: 10px; }
+        
+        /* 성공 메시지 디자인 */
+        #success-msg { display: none; margin-top: 20px; animation: fadeIn 0.5s; }
+        .checkmark { font-size: 60px; margin: 0; line-height: 1; }
+        .success-text { color: #4CAF50; font-size: 22px; font-weight: bold; margin-top: 10px; }
+        .success-sub { color: #666; font-size: 14px; margin-top: 5px; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -39,15 +47,27 @@
             <label>전화번호</label>
             <input type="text" id="phone_number" placeholder="예: 010-1234-5678">
         </div>
-        <button onclick="generateQR()">QR 코드 생성</button>
+        <button id="generate-btn" onclick="generateQR()">QR 코드 생성</button>
     </div>
 
     <div id="qr-container">
         <img id="qr-image" src="" alt="학생 QR 코드">
+        
+        <div id="success-msg">
+            <p class="checkmark">✅</p>
+            <p class="success-text" id="success-title">대여가 완료되었습니다!</p>
+            <p class="success-sub" id="success-desc">관리자에게 우산을 수령해 주세요.</p>
+        </div>
     </div>
 
     <script>
+        // 학생용 DB 연결
+        const supabaseUrl = 'https://urzbonndueqylygtzlus.supabase.co';
+        const supabaseKey = 'sb_publishable_rZYklPBEFvoKZxatf_xAig_ceWd_epI';
+        const studentDb = supabase.createClient(supabaseUrl, supabaseKey);
+
         let currentMode = 'rent';
+        let checkInterval; // 타이머 변수
 
         function setMode(mode) {
             currentMode = mode;
@@ -55,7 +75,15 @@
             event.target.classList.add('active');
             
             document.getElementById('phone-group').style.display = (mode === 'rent') ? 'block' : 'none';
-            document.getElementById('qr-image').style.display = 'none'; // 모드 바뀌면 QR 숨기기
+            document.getElementById('generate-btn').innerText = (mode === 'rent') ? '대여 QR 생성' : '반납 QR 생성';
+            
+            resetScreen();
+        }
+
+        function resetScreen() {
+            document.getElementById('qr-image').style.display = 'none';
+            document.getElementById('success-msg').style.display = 'none';
+            if (checkInterval) clearInterval(checkInterval); // 기존 타이머 정지
         }
 
         function generateQR() {
@@ -68,15 +96,61 @@
                 return;
             }
 
-            // 학생 정보를 하나의 JSON 데이터로 묶기
+            resetScreen(); // 화면 초기화
+
+            // QR 코드 생성
             const qrData = { action: currentMode, student_id: sid, student_name: sname, phone_number: phone };
-            
-            // 💡 무룡고 방식 적용: 데이터를 암호화(인코딩)해서 외부 API 주소 뒤에 붙여버리기
             const encodedData = encodeURIComponent(JSON.stringify(qrData));
             const qrImg = document.getElementById('qr-image');
             
             qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodedData}`;
-            qrImg.style.display = 'block'; // 이미지 보이기
+            qrImg.style.display = 'block';
+
+            // 💡 QR 생성 시점의 시간을 기록해둡니다. (이 시간 이후에 생긴 변화만 감지하기 위해)
+            const qrGenerationTime = new Date().toISOString();
+
+            // 💡 2초마다 DB 확인하는 타이머 시작!
+            checkInterval = setInterval(async () => {
+                
+                if (currentMode === 'rent') {
+                    // 대여 모드: 내가 방금 QR 만든 시간 이후에 '대여중'으로 데이터가 추가되었는지 확인
+                    const { data } = await studentDb.from('umbrella_rentals')
+                        .select('*')
+                        .eq('student_id', sid)
+                        .eq('status', '대여중')
+                        .gte('rent_date', qrGenerationTime); // QR 생성 시간 이후 데이터만 필터링
+
+                    if (data && data.length > 0) {
+                        showSuccess("대여가 완료되었습니다!", "우산을 잊지 말고 챙겨주세요 ☂️");
+                    }
+                } 
+                else if (currentMode === 'return') {
+                    // 반납 모드: 내가 방금 QR 만든 시간 이후에 '반납완료'로 데이터가 업데이트되었는지 확인
+                    const { data } = await studentDb.from('umbrella_rentals')
+                        .select('*')
+                        .eq('student_id', sid)
+                        .eq('status', '반납완료')
+                        .gte('return_date', qrGenerationTime);
+
+                    if (data && data.length > 0) {
+                        showSuccess("반납이 완료되었습니다!", "이용해 주셔서 감사합니다 ☺️");
+                    }
+                }
+
+            }, 2000); // 2000ms = 2초
+        }
+
+        function showSuccess(title, desc) {
+            clearInterval(checkInterval); // 확인 성공했으니 타이머 끄기
+            document.getElementById('qr-image').style.display = 'none'; // QR코드 숨기기
+            
+            // 성공 멘트 띄우기
+            document.getElementById('success-title').innerText = title;
+            document.getElementById('success-desc').innerText = desc;
+            document.getElementById('success-msg').style.display = 'block';
+            
+            // 폰트 색상 변경 (대여는 초록, 반납은 파랑)
+            document.getElementById('success-title').style.color = (currentMode === 'rent') ? '#4CAF50' : '#2196F3';
         }
     </script>
 </body>
