@@ -3,73 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>양심우산 대여/반납 (학생용)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>양심우산 학생 서비스</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; max-width: 400px; margin: 0 auto; padding: 20px; text-align: center; }
+        .tab-container { display: flex; margin-bottom: 20px; }
+        .tab { flex: 1; padding: 10px; cursor: pointer; background: #eee; border-radius: 5px; margin: 0 5px; }
+        .tab.active { background: #4CAF50; color: white; }
+        .form-group { margin-bottom: 15px; text-align: left; }
+        input { width: 100%; padding: 10px; box-sizing: border-box; margin-top: 5px; }
+        button { width: 100%; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
+        #qrcode { margin-top: 20px; display: flex; justify-content: center; }
+    </style>
 </head>
-<body class="bg-gray-100 p-6 flex justify-center">
-    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md text-center">
-        <h1 class="text-2xl font-bold mb-6 text-blue-600">☂️ 학교 양심우산</h1>
-        
-        <div class="flex gap-2 mb-6">
-            <button onclick="setMode('rent')" id="btnRent" class="flex-1 py-2 bg-blue-500 text-white rounded font-bold">대여하기</button>
-            <button onclick="setMode('return')" id="btnReturn" class="flex-1 py-2 bg-gray-200 text-gray-700 rounded font-bold">반납하기</button>
-        </div>
-
-        <div id="formSection" class="text-left">
-            <input type="text" id="studentId" placeholder="학번 (예: 10101)" class="w-full mb-3 p-2 border rounded">
-            <input type="text" id="studentName" placeholder="이름" class="w-full mb-3 p-2 border rounded">
-            <input type="text" id="phone" placeholder="전화번호 (대여시에만 필요)" class="w-full mb-4 p-2 border rounded">
-            
-            <button onclick="generateQR()" class="w-full bg-green-500 text-white py-2 rounded font-bold">QR코드 생성</button>
-        </div>
-
-        <div id="qrSection" class="mt-6 hidden flex flex-col items-center">
-            <p class="mb-2 font-bold text-gray-700" id="qrMessage">관리자에게 QR을 보여주세요</p>
-            <div id="qrcode" class="p-4 bg-white border-2 border-dashed border-gray-300 rounded"></div>
-        </div>
+<body>
+    <h2>양심우산 대여/반납</h2>
+    
+    <div class="tab-container">
+        <div class="tab active" onclick="setMode('rent')">대여하기</div>
+        <div class="tab" onclick="setMode('return')">반납하기</div>
     </div>
 
-    <script>
-        let mode = 'rent';
+    <div id="form-container">
+        <div class="form-group">
+            <label>학번</label>
+            <input type="text" id="student_id" placeholder="예: 20230101">
+        </div>
+        <div class="form-group">
+            <label>이름</label>
+            <input type="text" id="student_name" placeholder="예: 홍길동">
+        </div>
+        <div class="form-group" id="phone-group">
+            <label>전화번호</label>
+            <input type="text" id="phone_number" placeholder="예: 010-1234-5678">
+        </div>
+        <button onclick="generateQR()">QR 코드 생성</button>
+    </div>
 
-        function setMode(newMode) {
-            mode = newMode;
-            document.getElementById('btnRent').className = mode === 'rent' ? "flex-1 py-2 bg-blue-500 text-white rounded font-bold" : "flex-1 py-2 bg-gray-200 text-gray-700 rounded font-bold";
-            document.getElementById('btnReturn').className = mode === 'return' ? "flex-1 py-2 bg-blue-500 text-white rounded font-bold" : "flex-1 py-2 bg-gray-200 text-gray-700 rounded font-bold";
+    <div id="qrcode"></div>
+
+    <script>
+        let currentMode = 'rent';
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
             
-            document.getElementById('phone').style.display = mode === 'rent' ? "block" : "none";
-            document.getElementById('qrSection').classList.add('hidden');
+            // 반납일 때는 전화번호 입력창 숨기기
+            document.getElementById('phone-group').style.display = (mode === 'rent') ? 'block' : 'none';
+            document.getElementById('qrcode').innerHTML = ""; // QR 초기화
         }
 
         function generateQR() {
-            const studentId = document.getElementById('studentId').value;
-            const name = document.getElementById('studentName').value;
-            const phone = document.getElementById('phone').value;
+            const sid = document.getElementById('student_id').value;
+            const sname = document.getElementById('student_name').value;
+            const phone = document.getElementById('phone_number').value;
 
-            if (!studentId || !name || (mode === 'rent' && !phone)) {
-                alert('모든 정보를 입력해주세요!');
+            if(!sid || !sname || (currentMode === 'rent' && !phone)) {
+                alert("모든 정보를 입력해주세요.");
                 return;
             }
 
-            const qrData = JSON.stringify({
-                type: mode,
-                studentId: studentId,
-                name: name,
-                phone: mode === 'rent' ? phone : null
-            });
+            // QR에 담을 JSON 데이터
+            const qrData = {
+                action: currentMode,
+                student_id: sid,
+                student_name: sname,
+                phone_number: phone
+            };
 
-            // 숨김 해제 후 QR 생성 (정상 작동 로직 유지)
-            document.getElementById('qrSection').classList.remove('hidden');
-            document.getElementById('qrcode').innerHTML = "";
+            document.getElementById('qrcode').innerHTML = ""; // 기존 QR 삭제
+            new QRCode(document.getElementById("qrcode"), {
+                text: JSON.stringify(qrData),
+                width: 200,
+                height: 200
+            });
             
-            setTimeout(() => {
-                new QRCode(document.getElementById("qrcode"), {
-                    text: qrData,
-                    width: 200,
-                    height: 200,
-                });
-            }, 50);
+            alert("QR 코드가 생성되었습니다. 관리자에게 보여주세요.");
         }
     </script>
 </body>
