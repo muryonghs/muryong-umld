@@ -7,20 +7,32 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Malgun Gothic', sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-        #reader { width: 100%; max-width: 500px; margin: 0 auto 20px auto; border: 2px solid #ccc; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        body { font-family: 'Malgun Gothic', sans-serif; max-width: 800px; margin: 0 auto; padding: 15px; }
+        /* 카메라 화면 영역 */
+        #reader { width: 100%; max-width: 500px; min-height: 250px; margin: 0 auto 15px auto; border: 2px dashed #ccc; background-color: #f9f9f9; display: flex; align-items: center; justify-content: center; color: #999; }
+        /* 모바일용 버튼 스타일 */
+        .btn-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        .btn { flex: 1; padding: 15px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 8px; cursor: pointer; }
+        #start-btn { background: #4CAF50; }
+        #stop-btn { background: #f44336; display: none; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-        th { background-color: #4CAF50; color: white; }
-        button { padding: 10px; background: #333; color: white; border: none; cursor: pointer; border-radius: 4px; }
+        th { background-color: #333; color: white; }
+        .refresh-btn { padding: 8px 12px; background: #555; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; float: right; }
     </style>
 </head>
 <body>
-    <h2>관리자 스캐너 & 대여 현황</h2>
+    <h2>관리자 스캐너</h2>
 
-    <div id="reader"></div>
+    <div id="reader">카메라가 꺼져있습니다.</div>
 
-    <h3>현재 대여 현황 <button onclick="fetchRentals()" style="font-size: 12px; float: right;">새로고침</button></h3>
+    <div class="btn-group">
+        <button id="start-btn" class="btn" onclick="startScanner()">📷 카메라 켜기</button>
+        <button id="stop-btn" class="btn" onclick="stopScanner()">정지</button>
+    </div>
+
+    <h3>현재 대여 현황 <button class="refresh-btn" onclick="fetchRentals()">새로고침</button></h3>
     <table>
         <thead>
             <tr>
@@ -28,7 +40,6 @@
                 <th>학번</th>
                 <th>이름</th>
                 <th>우산번호</th>
-                <th>대여일시</th>
             </tr>
         </thead>
         <tbody id="rental-list">
@@ -36,23 +47,58 @@
     </table>
 
     <script>
-        // Supabase 초기화 (제공해주신 키 사용)
+        // Supabase 초기화
         const supabaseUrl = 'https://urzbonndueqylygtzlus.supabase.co';
         const supabaseKey = 'sb_publishable_rZYklPBEFvoKZxatf_xAig_ceWd_epI';
         const supabase = supabaseCreateClient.createClient(supabaseUrl, supabaseKey);
 
-        // 스캐너 상태 (중복 스캔 방지용)
+        let html5QrCode;
         let isProcessing = false;
 
-        async function onScanSuccess(decodedText, decodedResult) {
+        // 스캐너 시작 함수 (모바일 후면 카메라 우선)
+        function startScanner() {
+            // 카메라 화면 영역 초기화
+            document.getElementById('reader').innerHTML = ""; 
+            html5QrCode = new Html5Qrcode("reader");
+
+            html5QrCode.start(
+                { facingMode: "environment" }, // 모바일 후면 카메라 작동
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                onScanSuccess,
+                (errorMessage) => { /* 스캔 중 발생하는 자잘한 에러는 무시 */ }
+            ).then(() => {
+                // 카메라가 성공적으로 켜지면 버튼 바꾸기
+                document.getElementById('start-btn').style.display = 'none';
+                document.getElementById('stop-btn').style.display = 'block';
+            }).catch((err) => {
+                alert("카메라를 켤 수 없습니다.\n(https 환경인지, 카메라 권한을 허용했는지 확인해주세요!)\n상세오류: " + err);
+                document.getElementById('reader').innerHTML = "카메라 작동 실패";
+            });
+        }
+
+        // 스캐너 정지 함수
+        function stopScanner() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    document.getElementById('start-btn').style.display = 'block';
+                    document.getElementById('stop-btn').style.display = 'none';
+                    document.getElementById('reader').innerHTML = "카메라가 꺼져있습니다.";
+                }).catch(err => console.error("스캐너 정지 오류", err));
+            }
+        }
+
+        // 스캔 성공 시 실행되는 함수
+        async function onScanSuccess(decodedText) {
             if (isProcessing) return;
             isProcessing = true;
             
+            // 스캔 성공 시 잠시 스캐너 멈춤 (연속 스캔 방지)
+            stopScanner();
+
             try {
                 const data = JSON.parse(decodedText);
                 
                 if (data.action === 'rent') {
-                    // 대여 처리
                     const umbrellaNum = prompt(`${data.student_name} 학생에게 빌려줄 우산 번호를 입력하세요:`);
                     if (umbrellaNum) {
                         const { error } = await supabase.from('umbrella_rentals').insert([
@@ -65,25 +111,23 @@
                             }
                         ]);
                         if (error) throw error;
-                        alert('대여 완료되었습니다!');
+                        alert('✅ 대여 완료되었습니다!');
                     }
                 } else if (data.action === 'return') {
-                    // 반납 처리
                     const { error } = await supabase.from('umbrella_rentals')
                         .update({ status: '반납완료', return_date: new Date().toISOString() })
                         .eq('student_id', data.student_id)
                         .eq('status', '대여중');
                     
                     if (error) throw error;
-                    alert(`${data.student_name} 학생의 우산이 반납 완료되었습니다!`);
+                    alert(`✅ ${data.student_name} 학생의 우산이 반납 완료되었습니다!`);
                 }
             } catch (err) {
                 console.error(err);
                 alert('QR 코드 인식 오류 또는 DB 통신 에러가 발생했습니다.');
             } finally {
-                // 처리가 끝나면 다시 스캔 가능하게 대기 (3초 후)
                 fetchRentals();
-                setTimeout(() => { isProcessing = false; }, 3000);
+                setTimeout(() => { isProcessing = false; }, 2000);
             }
         }
 
@@ -92,7 +136,8 @@
             const { data, error } = await supabase
                 .from('umbrella_rentals')
                 .select('*')
-                .order('rent_date', { ascending: false });
+                .order('rent_date', { ascending: false })
+                .limit(20); // 모바일 화면을 위해 최근 20개만 표시
 
             if (error) {
                 console.error(error);
@@ -104,22 +149,15 @@
             
             data.forEach(row => {
                 const tr = document.createElement('tr');
-                const date = new Date(row.rent_date).toLocaleString('ko-KR');
                 tr.innerHTML = `
-                    <td><strong style="color: ${row.status === '대여중' ? 'red' : 'green'}">${row.status}</strong></td>
+                    <td><strong style="color: ${row.status === '대여중' ? '#f44336' : '#4CAF50'}">${row.status}</strong></td>
                     <td>${row.student_id}</td>
                     <td>${row.student_name}</td>
-                    <td>${row.umbrella_number}</td>
-                    <td>${date}</td>
+                    <td>${row.umbrella_number || '-'}</td>
                 `;
                 tbody.appendChild(tr);
             });
         }
-
-        // 스캐너 실행
-        const html5QrcodeScanner = new Html5QrcodeScanner(
-            "reader", { fps: 10, qrbox: {width: 250, height: 250} }, /* verbose= */ false);
-        html5QrcodeScanner.render(onScanSuccess);
 
         // 페이지 로드 시 현황 바로 불러오기
         fetchRentals();
