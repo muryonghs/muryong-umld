@@ -10,35 +10,30 @@
         :root { --primary: #00B4D8; --success: #2B9348; --bg: #F8F9FA; --text: #343A40; }
         body { font-family: 'Pretendard', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
         
-        /* 메인 카드 디자인 */
         .card { background: white; width: 100%; max-width: 400px; padding: 30px 20px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); text-align: center; }
         h2 { margin-top: 0; font-weight: 800; color: #1f2937; margin-bottom: 25px; }
         
-        /* 탭 버튼 디자인 */
         .tab-container { display: flex; background: #f1f5f9; border-radius: 12px; padding: 4px; margin-bottom: 25px; }
         .tab { flex: 1; padding: 12px; cursor: pointer; border-radius: 10px; font-weight: bold; color: #64748b; transition: all 0.3s ease; }
         .tab.active { background: white; color: var(--primary); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         .tab.active-return { background: white; color: var(--success); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         
-        /* 입력칸 디자인 */
         .form-group { margin-bottom: 15px; text-align: left; }
         label { font-size: 13px; font-weight: 600; color: #64748b; margin-bottom: 5px; display: block; padding-left: 4px; }
         input { width: 100%; padding: 14px; box-sizing: border-box; border: 1.5px solid #e2e8f0; border-radius: 12px; font-size: 15px; font-family: 'Pretendard'; transition: border-color 0.2s; background: #fafafa; }
         input:focus { outline: none; border-color: var(--primary); background: white; }
         
-        /* 메인 액션 버튼 */
         button { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; transition: transform 0.1s, background 0.3s; margin-top: 10px; box-shadow: 0 4px 15px rgba(0, 180, 216, 0.3); }
         button:active { transform: scale(0.98); }
         button.btn-return { background: var(--success); box-shadow: 0 4px 15px rgba(43, 147, 72, 0.3); }
         
-        /* QR 및 성공 메시지 영역 */
         #qr-container { margin-top: 30px; display: flex; flex-direction: column; align-items: center; min-height: 220px; }
         #qr-image { display: none; width: 180px; height: 180px; border: 2px solid #f1f5f9; padding: 15px; border-radius: 20px; background: white; box-shadow: 0 8px 25px rgba(0,0,0,0.05); animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         
         #success-msg { display: none; animation: popIn 0.5s; }
         .checkmark { font-size: 65px; margin: 0; line-height: 1; }
         .success-text { color: var(--primary); font-size: 22px; font-weight: 800; margin-top: 15px; margin-bottom: 5px; }
-        .success-sub { color: #64748b; font-size: 15px; margin-top: 0; }
+        .success-sub { color: #64748b; font-size: 15px; margin-top: 0; line-height: 1.4; word-break: keep-all; }
 
         @keyframes popIn { 0% { opacity: 0; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1); } }
     </style>
@@ -54,16 +49,16 @@
 
         <div id="form-container">
             <div class="form-group">
-                <label>학번</label>
-                <input type="number" id="student_id" placeholder="예: 20240101">
+                <label>학번 (4자리)</label>
+                <input type="text" inputmode="numeric" id="student_id" placeholder="예: 3705" maxlength="4" oninput="this.value = this.value.replace(/[^0-9]/g, '');">
             </div>
             <div class="form-group">
                 <label>이름</label>
                 <input type="text" id="student_name" placeholder="예: 홍길동">
             </div>
             <div class="form-group" id="phone-group">
-                <label>전화번호 (대여 시 필수)</label>
-                <input type="tel" id="phone_number" placeholder="예: 010-1234-5678">
+                <label>전화번호 (11자리, 숫자만)</label>
+                <input type="text" inputmode="numeric" id="phone_number" placeholder="예: 01012345678" maxlength="11" oninput="this.value = this.value.replace(/[^0-9]/g, '');">
             </div>
             <button id="generate-btn" onclick="generateQR()">QR 패스 발급받기</button>
         </div>
@@ -108,7 +103,20 @@
             const sname = document.getElementById('student_name').value;
             const phone = document.getElementById('phone_number').value;
 
-            if(!sid || !sname || (currentMode === 'rent' && !phone)) { alert("정보를 모두 입력해주세요."); return; }
+            if(!sid || !sname || (currentMode === 'rent' && !phone)) { 
+                alert("정보를 모두 입력해주세요."); 
+                return; 
+            }
+
+            if(sid.length !== 4) {
+                alert("학번은 정확히 4자리 숫자로 입력해주세요.\n(예: 3705)");
+                return;
+            }
+
+            if(currentMode === 'rent' && phone.length !== 11) {
+                alert("전화번호는 하이픈(-) 없이 11자리 숫자로 입력해주세요.\n(예: 01012345678)");
+                return;
+            }
 
             resetScreen();
 
@@ -127,9 +135,18 @@
                     .eq('student_id', sid).eq('status', checkStatus).gte(timeCol, qrGenerationTime);
 
                 if (data && data.length > 0) {
-                    currentMode === 'rent' 
-                        ? showSuccess("대여가 완료되었습니다!", "비 조심하시고 내일 꼭 반납해주세요 ☂️", "var(--primary)")
-                        : showSuccess("반납이 완료되었습니다!", "양심을 지켜주셔서 감사합니다 💖", "var(--success)");
+                    if (currentMode === 'rent') {
+                        // 💡 내일 날짜 계산 로직 추가
+                        const tomorrow = new Date();
+                        tomorrow.setDate(tomorrow.getDate() + 1);
+                        const month = tomorrow.getMonth() + 1;
+                        const date = tomorrow.getDate();
+                        const returnMessage = `내일 ${month}월 ${date}일 점심시간(12시 50분~ 1시 30분)까지 꼭 반납부탁드립니다 ☂️`;
+
+                        showSuccess("대여가 완료되었습니다!", returnMessage, "var(--primary)");
+                    } else {
+                        showSuccess("반납이 완료되었습니다!", "양심을 지켜주셔서 감사합니다 💖", "var(--success)");
+                    }
                 }
             }, 2000);
         }
