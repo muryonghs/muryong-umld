@@ -8,7 +8,6 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* 모바일 앱 스타일 기본 설정 */
         :root { --primary: #3b82f6; --danger: #ef4444; --success: #10b981; --bg: #f8fafc; --text: #1e293b; }
         body { font-family: 'Pretendard', sans-serif; background-color: var(--bg); margin: 0; padding: 0; color: var(--text); padding-bottom: 40px; }
         
@@ -101,7 +100,6 @@
                 <h3 id="m-name-title">상세 정보</h3>
                 <button class="close-btn" onclick="closeModal(event)">✕</button>
             </div>
-            
             <div class="detail-row">
                 <span class="detail-label">학번</span>
                 <span class="detail-value" id="m-id"></span>
@@ -174,14 +172,35 @@
                 if (data.action === 'rent') {
                     const umbrellaNum = prompt(`☂️ [대여 승인]\n${data.student_name} 학생에게 빌려줄 우산 번호를 입력하세요:`);
                     if (umbrellaNum) {
+                        
+                        // 💡 1. [핵심] 우산 중복 대여 방지 (이미 누가 빌려갔는지 확인)
+                        const { data: existing, error: checkErr } = await myDb.from('umbrella_rentals')
+                            .select('id')
+                            .eq('umbrella_number', umbrellaNum)
+                            .eq('status', '대여중');
+
+                        if (checkErr) throw checkErr;
+
+                        if (existing && existing.length > 0) {
+                            alert(`❌ [대여 불가] ${umbrellaNum}번 우산은 현재 다른 학생이 대여 중입니다!\n반납 확인 후 다시 시도해 주세요.`);
+                            return; // 함수를 즉시 종료하고 밑으로 안 내려감
+                        }
+
+                        // 💡 2. [핵심] 시간 오차 해결 (관리자 폰의 현재 시간을 강제로 주입)
                         const { error } = await myDb.from('umbrella_rentals').insert([
-                            { student_id: data.student_id, student_name: data.student_name, phone_number: data.phone_number, umbrella_number: umbrellaNum, status: '대여중' }
+                            { 
+                                student_id: data.student_id, 
+                                student_name: data.student_name, 
+                                phone_number: data.phone_number, 
+                                umbrella_number: umbrellaNum, 
+                                status: '대여중',
+                                rent_date: new Date().toISOString() // 현재 시간 강제 전송!
+                            }
                         ]);
                         if (error) throw error;
                         alert('✅ 대여가 완료되었습니다.');
                     }
                 } else if (data.action === 'return') {
-                    // 💡 1. 학번과 이름이 모두 정확히 일치하는 대여 기록 찾기
                     const { data: checkData, error: checkError } = await myDb.from('umbrella_rentals')
                         .select('id')
                         .eq('student_id', data.student_id)
@@ -191,7 +210,7 @@
                     if (checkError) throw checkError;
 
                     if (checkData && checkData.length > 0) {
-                        // 💡 2. 일치하는 기록이 있으면 그 줄만 업데이트
+                        // 💡 반납 시간도 관리자 폰의 현재 시간으로 강제 업데이트
                         const { error: updateError } = await myDb.from('umbrella_rentals')
                             .update({ status: '반납완료', return_date: new Date().toISOString() })
                             .eq('id', checkData[0].id);
@@ -199,8 +218,7 @@
                         if (updateError) throw updateError;
                         alert(`✅ ${data.student_name} 학생의 우산이 반납되었습니다.`);
                     } else {
-                        // 💡 3. 일치하는 기록이 없으면 경고창 띄우기 (학생 폰에도 성공 화면 안 뜸)
-                        alert(`❌ 반납 실패!\n학번(${data.student_id})과 이름(${data.student_name})이 대여 시 입력한 정보와 정확히 일치하는지 확인해 주세요.\n(또는 대여 중인 우산이 없습니다.)`);
+                        alert(`❌ 반납 실패!\n학번(${data.student_id})과 이름(${data.student_name})이 대여 시 입력한 정보와 일치하지 않거나 대여 중인 우산이 없습니다.`);
                     }
                 }
             } catch (err) {
@@ -212,6 +230,7 @@
             }
         }
 
+        // 날짜 포맷 (년.월.일 시:분 형식)
         function formatFullDate(dateString) {
             if (!dateString) return '-';
             const d = new Date(dateString);
