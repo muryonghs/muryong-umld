@@ -74,10 +74,15 @@
             };
 
             document.getElementById('qrcode').innerHTML = ""; // 기존 QR 삭제
+            
+            // QR 코드 생성 (용량 초과 에러 해결을 위해 correctLevel 추가)
             new QRCode(document.getElementById("qrcode"), {
                 text: JSON.stringify(qrData),
                 width: 200,
-                height: 200
+                height: 200,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.L // 핵심: 데이터 저장 공간 최대 확보
             });
             
             alert("QR 코드가 생성되었습니다. 관리자에게 보여주세요.");
