@@ -3,79 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>양심우산 학생 서비스</title>
+    <title>학생 - 양심우산 서비스</title>
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Malgun Gothic', sans-serif; max-width: 400px; margin: 0 auto; padding: 20px; text-align: center; }
-        .tab-container { display: flex; margin-bottom: 20px; }
-        .tab { flex: 1; padding: 10px; cursor: pointer; background: #eee; border-radius: 5px; margin: 0 5px; font-weight: bold; }
-        .tab.active { background: #4CAF50; color: white; }
+        :root { --primary: #00B4D8; --success: #2B9348; --bg: #F8F9FA; --text: #343A40; }
+        body { font-family: 'Pretendard', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        
+        /* 메인 카드 디자인 */
+        .card { background: white; width: 100%; max-width: 400px; padding: 30px 20px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); text-align: center; }
+        h2 { margin-top: 0; font-weight: 800; color: #1f2937; margin-bottom: 25px; }
+        
+        /* 탭 버튼 디자인 */
+        .tab-container { display: flex; background: #f1f5f9; border-radius: 12px; padding: 4px; margin-bottom: 25px; }
+        .tab { flex: 1; padding: 12px; cursor: pointer; border-radius: 10px; font-weight: bold; color: #64748b; transition: all 0.3s ease; }
+        .tab.active { background: white; color: var(--primary); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .tab.active-return { background: white; color: var(--success); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        
+        /* 입력칸 디자인 */
         .form-group { margin-bottom: 15px; text-align: left; }
-        input { width: 100%; padding: 10px; box-sizing: border-box; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; }
-        button { width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        label { font-size: 13px; font-weight: 600; color: #64748b; margin-bottom: 5px; display: block; padding-left: 4px; }
+        input { width: 100%; padding: 14px; box-sizing: border-box; border: 1.5px solid #e2e8f0; border-radius: 12px; font-size: 15px; font-family: 'Pretendard'; transition: border-color 0.2s; background: #fafafa; }
+        input:focus { outline: none; border-color: var(--primary); background: white; }
         
-        #qr-container { margin-top: 20px; display: flex; justify-content: center; flex-direction: column; align-items: center; min-height: 250px; }
-        #qr-image { display: none; width: 200px; height: 200px; border: 1px solid #ddd; padding: 10px; border-radius: 10px; }
+        /* 메인 액션 버튼 */
+        button { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; transition: transform 0.1s, background 0.3s; margin-top: 10px; box-shadow: 0 4px 15px rgba(0, 180, 216, 0.3); }
+        button:active { transform: scale(0.98); }
+        button.btn-return { background: var(--success); box-shadow: 0 4px 15px rgba(43, 147, 72, 0.3); }
         
-        /* 성공 메시지 디자인 */
-        #success-msg { display: none; margin-top: 20px; animation: fadeIn 0.5s; }
-        .checkmark { font-size: 60px; margin: 0; line-height: 1; }
-        .success-text { color: #4CAF50; font-size: 22px; font-weight: bold; margin-top: 10px; }
-        .success-sub { color: #666; font-size: 14px; margin-top: 5px; }
+        /* QR 및 성공 메시지 영역 */
+        #qr-container { margin-top: 30px; display: flex; flex-direction: column; align-items: center; min-height: 220px; }
+        #qr-image { display: none; width: 180px; height: 180px; border: 2px solid #f1f5f9; padding: 15px; border-radius: 20px; background: white; box-shadow: 0 8px 25px rgba(0,0,0,0.05); animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        #success-msg { display: none; animation: popIn 0.5s; }
+        .checkmark { font-size: 65px; margin: 0; line-height: 1; }
+        .success-text { color: var(--primary); font-size: 22px; font-weight: 800; margin-top: 15px; margin-bottom: 5px; }
+        .success-sub { color: #64748b; font-size: 15px; margin-top: 0; }
+
+        @keyframes popIn { 0% { opacity: 0; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1); } }
     </style>
 </head>
 <body>
-    <h2>☂️ 양심우산 대여/반납</h2>
-    
-    <div class="tab-container">
-        <div class="tab active" onclick="setMode('rent')">대여하기</div>
-        <div class="tab" onclick="setMode('return')">반납하기</div>
-    </div>
-
-    <div id="form-container">
-        <div class="form-group">
-            <label>학번</label>
-            <input type="text" id="student_id" placeholder="예: 20230101">
-        </div>
-        <div class="form-group">
-            <label>이름</label>
-            <input type="text" id="student_name" placeholder="예: 홍길동">
-        </div>
-        <div class="form-group" id="phone-group">
-            <label>전화번호</label>
-            <input type="text" id="phone_number" placeholder="예: 010-1234-5678">
-        </div>
-        <button id="generate-btn" onclick="generateQR()">QR 코드 생성</button>
-    </div>
-
-    <div id="qr-container">
-        <img id="qr-image" src="" alt="학생 QR 코드">
+    <div class="card">
+        <h2>☂️ 무인 양심우산</h2>
         
-        <div id="success-msg">
-            <p class="checkmark">✅</p>
-            <p class="success-text" id="success-title">대여가 완료되었습니다!</p>
-            <p class="success-sub" id="success-desc">관리자에게 우산을 수령해 주세요.</p>
+        <div class="tab-container">
+            <div class="tab active" id="tab-rent" onclick="setMode('rent')">대여하기</div>
+            <div class="tab" id="tab-return" onclick="setMode('return')">반납하기</div>
+        </div>
+
+        <div id="form-container">
+            <div class="form-group">
+                <label>학번</label>
+                <input type="number" id="student_id" placeholder="예: 20240101">
+            </div>
+            <div class="form-group">
+                <label>이름</label>
+                <input type="text" id="student_name" placeholder="예: 홍길동">
+            </div>
+            <div class="form-group" id="phone-group">
+                <label>전화번호 (대여 시 필수)</label>
+                <input type="tel" id="phone_number" placeholder="예: 010-1234-5678">
+            </div>
+            <button id="generate-btn" onclick="generateQR()">QR 패스 발급받기</button>
+        </div>
+
+        <div id="qr-container">
+            <img id="qr-image" src="" alt="학생 QR 코드">
+            <div id="success-msg">
+                <p class="checkmark">✨</p>
+                <p class="success-text" id="success-title">대여 완료!</p>
+                <p class="success-sub" id="success-desc">우산을 수령해 주세요.</p>
+            </div>
         </div>
     </div>
 
     <script>
-        // 학생용 DB 연결
-        const supabaseUrl = 'https://urzbonndueqylygtzlus.supabase.co';
-        const supabaseKey = 'sb_publishable_rZYklPBEFvoKZxatf_xAig_ceWd_epI';
-        const studentDb = supabase.createClient(supabaseUrl, supabaseKey);
-
+        const studentDb = supabase.createClient('https://urzbonndueqylygtzlus.supabase.co', 'sb_publishable_rZYklPBEFvoKZxatf_xAig_ceWd_epI');
         let currentMode = 'rent';
-        let checkInterval; // 타이머 변수
+        let checkInterval; 
 
         function setMode(mode) {
             currentMode = mode;
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
+            document.getElementById('tab-rent').className = mode === 'rent' ? 'tab active' : 'tab';
+            document.getElementById('tab-return').className = mode === 'return' ? 'tab active-return' : 'tab';
             
-            document.getElementById('phone-group').style.display = (mode === 'rent') ? 'block' : 'none';
-            document.getElementById('generate-btn').innerText = (mode === 'rent') ? '대여 QR 생성' : '반납 QR 생성';
+            document.getElementById('phone-group').style.display = mode === 'rent' ? 'block' : 'none';
+            
+            const btn = document.getElementById('generate-btn');
+            btn.innerText = mode === 'rent' ? '대여 QR 발급받기' : '반납 QR 발급받기';
+            btn.className = mode === 'return' ? 'btn-return' : '';
             
             resetScreen();
         }
@@ -83,7 +100,7 @@
         function resetScreen() {
             document.getElementById('qr-image').style.display = 'none';
             document.getElementById('success-msg').style.display = 'none';
-            if (checkInterval) clearInterval(checkInterval); // 기존 타이머 정지
+            if (checkInterval) clearInterval(checkInterval);
         }
 
         function generateQR() {
@@ -91,66 +108,39 @@
             const sname = document.getElementById('student_name').value;
             const phone = document.getElementById('phone_number').value;
 
-            if(!sid || !sname || (currentMode === 'rent' && !phone)) {
-                alert("모든 정보를 입력해주세요.");
-                return;
-            }
+            if(!sid || !sname || (currentMode === 'rent' && !phone)) { alert("정보를 모두 입력해주세요."); return; }
 
-            resetScreen(); // 화면 초기화
+            resetScreen();
 
-            // QR 코드 생성
             const qrData = { action: currentMode, student_id: sid, student_name: sname, phone_number: phone };
-            const encodedData = encodeURIComponent(JSON.stringify(qrData));
             const qrImg = document.getElementById('qr-image');
-            
-            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodedData}`;
+            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify(qrData))}&color=1f2937`;
             qrImg.style.display = 'block';
 
-            // 💡 QR 생성 시점의 시간을 기록해둡니다. (이 시간 이후에 생긴 변화만 감지하기 위해)
             const qrGenerationTime = new Date().toISOString();
 
-            // 💡 2초마다 DB 확인하는 타이머 시작!
             checkInterval = setInterval(async () => {
-                
-                if (currentMode === 'rent') {
-                    // 대여 모드: 내가 방금 QR 만든 시간 이후에 '대여중'으로 데이터가 추가되었는지 확인
-                    const { data } = await studentDb.from('umbrella_rentals')
-                        .select('*')
-                        .eq('student_id', sid)
-                        .eq('status', '대여중')
-                        .gte('rent_date', qrGenerationTime); // QR 생성 시간 이후 데이터만 필터링
+                const checkStatus = currentMode === 'rent' ? '대여중' : '반납완료';
+                const timeCol = currentMode === 'rent' ? 'rent_date' : 'return_date';
 
-                    if (data && data.length > 0) {
-                        showSuccess("대여가 완료되었습니다!", "우산을 잊지 말고 챙겨주세요 ☂️");
-                    }
-                } 
-                else if (currentMode === 'return') {
-                    // 반납 모드: 내가 방금 QR 만든 시간 이후에 '반납완료'로 데이터가 업데이트되었는지 확인
-                    const { data } = await studentDb.from('umbrella_rentals')
-                        .select('*')
-                        .eq('student_id', sid)
-                        .eq('status', '반납완료')
-                        .gte('return_date', qrGenerationTime);
+                const { data } = await studentDb.from('umbrella_rentals').select('*')
+                    .eq('student_id', sid).eq('status', checkStatus).gte(timeCol, qrGenerationTime);
 
-                    if (data && data.length > 0) {
-                        showSuccess("반납이 완료되었습니다!", "이용해 주셔서 감사합니다 ☺️");
-                    }
+                if (data && data.length > 0) {
+                    currentMode === 'rent' 
+                        ? showSuccess("대여가 완료되었습니다!", "비 조심하시고 내일 꼭 반납해주세요 ☂️", "var(--primary)")
+                        : showSuccess("반납이 완료되었습니다!", "양심을 지켜주셔서 감사합니다 💖", "var(--success)");
                 }
-
-            }, 2000); // 2000ms = 2초
+            }, 2000);
         }
 
-        function showSuccess(title, desc) {
-            clearInterval(checkInterval); // 확인 성공했으니 타이머 끄기
-            document.getElementById('qr-image').style.display = 'none'; // QR코드 숨기기
-            
-            // 성공 멘트 띄우기
+        function showSuccess(title, desc, color) {
+            clearInterval(checkInterval);
+            document.getElementById('qr-image').style.display = 'none';
             document.getElementById('success-title').innerText = title;
+            document.getElementById('success-title').style.color = color;
             document.getElementById('success-desc').innerText = desc;
             document.getElementById('success-msg').style.display = 'block';
-            
-            // 폰트 색상 변경 (대여는 초록, 반납은 파랑)
-            document.getElementById('success-title').style.color = (currentMode === 'rent') ? '#4CAF50' : '#2196F3';
         }
     </script>
 </body>
