@@ -8,11 +8,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; max-width: 800px; margin: 0 auto; padding: 15px; }
-        #reader { width: 100%; max-width: 500px; min-height: 250px; margin: 0 auto 15px auto; border: 2px dashed #ccc; background-color: #f9f9f9; display: flex; align-items: center; justify-content: center; color: #999; }
-        .btn-group { display: flex; gap: 10px; margin-bottom: 20px; }
-        .btn { flex: 1; padding: 15px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 8px; cursor: pointer; }
-        #start-btn { background: #4CAF50; }
-        #stop-btn { background: #f44336; display: none; }
+        /* 스캐너가 예쁘게 들어갈 박스 */
+        #reader { width: 100%; max-width: 500px; margin: 0 auto 20px auto; border: none !important; border-radius: 10px; overflow: hidden; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
         th { background-color: #333; color: white; }
@@ -22,12 +19,7 @@
 <body>
     <h2>관리자 스캐너</h2>
 
-    <div id="reader">카메라가 꺼져있습니다.</div>
-
-    <div class="btn-group">
-        <button id="start-btn" class="btn" onclick="startScanner()">📷 카메라 켜기</button>
-        <button id="stop-btn" class="btn" onclick="stopScanner()">정지</button>
-    </div>
+    <div id="reader"></div>
 
     <h3>현재 대여 현황 <button class="refresh-btn" onclick="fetchRentals()">새로고침</button></h3>
     <table>
@@ -43,48 +35,20 @@
     </table>
 
     <script>
-        // ---------------------------------------------------------
-        // 아래 세 줄(Supabase 연결)이 파일 전체에 딱 한 번만 있어야 합니다!
+        // 양심우산 DB 연결 (단 한 번만!)
         const supabaseUrl = 'https://urzbonndueqylygtzlus.supabase.co';
         const supabaseKey = 'sb_publishable_rZYklPBEFvoKZxatf_xAig_ceWd_epI';
         const supabase = supabaseCreateClient.createClient(supabaseUrl, supabaseKey);
-        // ---------------------------------------------------------
 
-        let html5QrCode;
         let isProcessing = false;
 
-        function startScanner() {
-            document.getElementById('reader').innerHTML = ""; 
-            html5QrCode = new Html5Qrcode("reader");
-
-            html5QrCode.start(
-                { facingMode: "environment" }, 
-                { fps: 10, qrbox: { width: 250, height: 250 } },
-                onScanSuccess,
-                (errorMessage) => { /* 무시 */ }
-            ).then(() => {
-                document.getElementById('start-btn').style.display = 'none';
-                document.getElementById('stop-btn').style.display = 'block';
-            }).catch((err) => {
-                alert("카메라를 켤 수 없습니다.\n상세오류: " + err);
-                document.getElementById('reader').innerHTML = "카메라 작동 실패";
-            });
-        }
-
-        function stopScanner() {
-            if (html5QrCode) {
-                html5QrCode.stop().then(() => {
-                    document.getElementById('start-btn').style.display = 'block';
-                    document.getElementById('stop-btn').style.display = 'none';
-                    document.getElementById('reader').innerHTML = "카메라가 꺼져있습니다.";
-                }).catch(err => console.error(err));
-            }
-        }
+        // 💡 무룡고 방식의 자동 UI 스캐너 실행!
+        let html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
+        html5QrcodeScanner.render(onScanSuccess);
 
         async function onScanSuccess(decodedText) {
             if (isProcessing) return;
             isProcessing = true;
-            stopScanner(); 
 
             try {
                 const data = JSON.parse(decodedText);
