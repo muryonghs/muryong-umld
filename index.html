@@ -4,20 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>양심우산 학생 서비스</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; max-width: 400px; margin: 0 auto; padding: 20px; text-align: center; }
         .tab-container { display: flex; margin-bottom: 20px; }
-        .tab { flex: 1; padding: 10px; cursor: pointer; background: #eee; border-radius: 5px; margin: 0 5px; }
+        .tab { flex: 1; padding: 10px; cursor: pointer; background: #eee; border-radius: 5px; margin: 0 5px; font-weight: bold; }
         .tab.active { background: #4CAF50; color: white; }
         .form-group { margin-bottom: 15px; text-align: left; }
         input { width: 100%; padding: 10px; box-sizing: border-box; margin-top: 5px; }
-        button { width: 100%; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
-        #qr-container { margin-top: 20px; display: flex; justify-content: center; min-height: 200px; }
+        button { width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        
+        /* 외부 API로 불러온 QR 이미지를 예쁘게 담을 곳 */
+        #qr-container { margin-top: 20px; display: flex; justify-content: center; }
+        #qr-image { display: none; width: 200px; height: 200px; border: 1px solid #ddd; padding: 10px; border-radius: 10px; }
     </style>
 </head>
 <body>
-    <h2>양심우산 대여/반납</h2>
+    <h2>☂️ 양심우산 대여/반납</h2>
     
     <div class="tab-container">
         <div class="tab active" onclick="setMode('rent')">대여하기</div>
@@ -41,25 +43,19 @@
     </div>
 
     <div id="qr-container">
-        <canvas id="qrcode"></canvas>
+        <img id="qr-image" src="" alt="학생 QR 코드">
     </div>
 
     <script>
         let currentMode = 'rent';
-        let qrCodeInstance = null; // QR 객체를 저장할 변수
 
         function setMode(mode) {
             currentMode = mode;
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             event.target.classList.add('active');
             
-            // 반납일 때는 전화번호 입력창 숨기기
             document.getElementById('phone-group').style.display = (mode === 'rent') ? 'block' : 'none';
-            
-            // 모드가 바뀌면 기존 QR 지우기
-            if (qrCodeInstance) {
-                qrCodeInstance.value = ''; 
-            }
+            document.getElementById('qr-image').style.display = 'none'; // 모드 바뀌면 QR 숨기기
         }
 
         function generateQR() {
@@ -72,23 +68,15 @@
                 return;
             }
 
-            // QR에 담을 JSON 데이터
-            const qrData = {
-                action: currentMode,
-                student_id: sid,
-                student_name: sname,
-                phone_number: phone
-            };
-
-            // QRious 라이브러리를 사용하여 QR 생성
-            qrCodeInstance = new QRious({
-                element: document.getElementById('qrcode'),
-                value: JSON.stringify(qrData), // 데이터를 문자열로 변환
-                size: 200,
-                level: 'L' // 오류 복원 수준 (L: 용량 최대로)
-            });
+            // 학생 정보를 하나의 JSON 데이터로 묶기
+            const qrData = { action: currentMode, student_id: sid, student_name: sname, phone_number: phone };
             
-            alert("QR 코드가 생성되었습니다. 관리자에게 보여주세요.");
+            // 💡 무룡고 방식 적용: 데이터를 암호화(인코딩)해서 외부 API 주소 뒤에 붙여버리기
+            const encodedData = encodeURIComponent(JSON.stringify(qrData));
+            const qrImg = document.getElementById('qr-image');
+            
+            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodedData}`;
+            qrImg.style.display = 'block'; // 이미지 보이기
         }
     </script>
 </body>
