@@ -2,12 +2,12 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>학생 - 양심우산 서비스</title>
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --primary: #00B4D8; --success: #2B9348; --bg: #F8F9FA; --text: #343A40; }
+        :root { --primary: #00B4D8; --success: #2B9348; --danger: #ef4444; --bg: #F8F9FA; --text: #343A40; }
         body { font-family: 'Pretendard', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
         
         .card { background: white; width: 100%; max-width: 400px; padding: 30px 20px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); text-align: center; }
@@ -30,12 +30,25 @@
         #qr-container { margin-top: 30px; display: flex; flex-direction: column; align-items: center; min-height: 220px; }
         #qr-image { display: none; width: 180px; height: 180px; border: 2px solid #f1f5f9; padding: 15px; border-radius: 20px; background: white; box-shadow: 0 8px 25px rgba(0,0,0,0.05); animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         
-        #success-msg { display: none; animation: popIn 0.5s; }
+        #success-msg { display: none; animation: popIn 0.5s; width: 100%; }
         .checkmark { font-size: 65px; margin: 0; line-height: 1; }
-        .success-text { color: var(--primary); font-size: 22px; font-weight: 800; margin-top: 15px; margin-bottom: 5px; }
-        .success-sub { color: #64748b; font-size: 15px; margin-top: 0; line-height: 1.4; word-break: keep-all; }
+        .success-text { color: var(--primary); font-size: 22px; font-weight: 800; margin-top: 15px; margin-bottom: 15px; }
+        .success-sub { background: #f0f9ff; padding: 15px; border-radius: 12px; border: 1px solid #bae6fd; color: #0369a1; font-size: 15px; margin-top: 0; line-height: 1.5; word-break: keep-all; font-weight: bold; }
 
         @keyframes popIn { 0% { opacity: 0; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1); } }
+
+        /* 🚨 동의 팝업(모달) 스타일 */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
+        .modal-content { background: white; width: 100%; max-width: 360px; border-radius: 20px; padding: 25px; box-sizing: border-box; animation: popIn 0.3s; text-align: left; }
+        .modal-content h3 { margin-top: 0; color: #0f172a; font-size: 18px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        .warning-box { background: #fff5f5; border: 1px solid #fed7d7; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
+        .warning-box p { margin: 0 0 10px 0; font-size: 14.5px; color: #334155; line-height: 1.5; word-break: keep-all; }
+        .warning-box p:last-child { margin-bottom: 0; }
+        .highlight-red { color: var(--danger); font-weight: 800; }
+        .highlight-blue { color: var(--primary); font-weight: 800; }
+        .modal-btns { display: flex; gap: 10px; }
+        .btn-cancel { background: #f1f5f9; color: #64748b; box-shadow: none; flex: 1; margin-top: 0; }
+        .btn-agree { background: var(--primary); color: white; flex: 2; margin-top: 0; box-shadow: 0 4px 12px rgba(0, 180, 216, 0.3); }
     </style>
 </head>
 <body>
@@ -60,7 +73,7 @@
                 <label>전화번호 (11자리, 숫자만)</label>
                 <input type="text" inputmode="numeric" id="phone_number" placeholder="예: 01012345678" maxlength="11" oninput="this.value = this.value.replace(/[^0-9]/g, '');">
             </div>
-            <button id="generate-btn" onclick="generateQR()">QR 패스 발급받기</button>
+            <button id="generate-btn" onclick="checkAndShowConsent()">QR 패스 발급받기</button>
         </div>
 
         <div id="qr-container">
@@ -68,7 +81,21 @@
             <div id="success-msg">
                 <p class="checkmark">✨</p>
                 <p class="success-text" id="success-title">대여 완료!</p>
-                <p class="success-sub" id="success-desc">우산을 수령해 주세요.</p>
+                <div class="success-sub" id="success-desc">우산을 수령해 주세요.</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="consent-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>⚠️ 대여 전 필수 확인</h3>
+            <div class="warning-box">
+                <p>1. 우산을 분실하거나 파손한 경우 <span class="highlight-red">5,000원의 비용 청구</span>가 발생합니다.</p>
+                <p>2. 반납 기한은 <br><span class="highlight-blue" id="modal-return-time">내일 날짜 계산중...</span><br>까지 입니다.</p>
+            </div>
+            <div class="modal-btns">
+                <button class="btn-cancel" onclick="closeConsentModal()">취소</button>
+                <button class="btn-agree" onclick="agreeAndGenerate()">동의하고 대여</button>
             </div>
         </div>
     </div>
@@ -77,6 +104,7 @@
         const studentDb = supabase.createClient('https://urzbonndueqylygtzlus.supabase.co', 'sb_publishable_rZYklPBEFvoKZxatf_xAig_ceWd_epI');
         let currentMode = 'rent';
         let checkInterval; 
+        let calculatedReturnStr = ""; // 계산된 반납 날짜 문자열 저장용
 
         function setMode(mode) {
             currentMode = mode;
@@ -98,26 +126,57 @@
             if (checkInterval) clearInterval(checkInterval);
         }
 
-        function generateQR() {
+        // 📅 내일 날짜 계산 함수
+        function getTomorrowString() {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const month = tomorrow.getMonth() + 1;
+            const date = tomorrow.getDate();
+            return `내일 ${month}월 ${date}일 점심시간\n(12시 50분 ~ 1시 30분)`;
+        }
+
+        // 1단계: 입력값 검사 및 동의 팝업 띄우기
+        function checkAndShowConsent() {
             const sid = document.getElementById('student_id').value;
             const sname = document.getElementById('student_name').value;
             const phone = document.getElementById('phone_number').value;
 
             if(!sid || !sname || (currentMode === 'rent' && !phone)) { 
-                alert("정보를 모두 입력해주세요."); 
-                return; 
+                alert("정보를 모두 입력해주세요."); return; 
             }
-
             if(sid.length !== 4) {
-                alert("학번은 정확히 4자리 숫자로 입력해주세요.\n(예: 3705)");
-                return;
+                alert("학번은 정확히 4자리 숫자로 입력해주세요.\n(예: 3705)"); return;
             }
-
             if(currentMode === 'rent' && phone.length !== 11) {
-                alert("전화번호는 하이픈(-) 없이 11자리 숫자로 입력해주세요.\n(예: 01012345678)");
-                return;
+                alert("전화번호는 하이픈(-) 없이 11자리 숫자로 입력해주세요.\n(예: 01012345678)"); return;
             }
 
+            if (currentMode === 'rent') {
+                // 대여일 경우 팝업 띄우기
+                calculatedReturnStr = getTomorrowString();
+                document.getElementById('modal-return-time').innerText = calculatedReturnStr;
+                document.getElementById('consent-modal').style.display = 'flex';
+            } else {
+                // 반납일 경우 바로 QR 생성
+                executeQRGeneration(sid, sname, phone);
+            }
+        }
+
+        function closeConsentModal() {
+            document.getElementById('consent-modal').style.display = 'none';
+        }
+
+        // 2단계: 동의 버튼 누르면 팝업 닫고 QR 생성 시작
+        function agreeAndGenerate() {
+            closeConsentModal();
+            const sid = document.getElementById('student_id').value;
+            const sname = document.getElementById('student_name').value;
+            const phone = document.getElementById('phone_number').value;
+            executeQRGeneration(sid, sname, phone);
+        }
+
+        // 3단계: 실제 QR코드 발급 및 DB 확인 로직
+        function executeQRGeneration(sid, sname, phone) {
             resetScreen();
 
             const qrData = { action: currentMode, student_id: sid, student_name: sname, phone_number: phone };
@@ -136,27 +195,30 @@
 
                 if (data && data.length > 0) {
                     if (currentMode === 'rent') {
-                        // 💡 내일 날짜 계산 로직 추가
-                        const tomorrow = new Date();
-                        tomorrow.setDate(tomorrow.getDate() + 1);
-                        const month = tomorrow.getMonth() + 1;
-                        const date = tomorrow.getDate();
-                        const returnMessage = `내일 ${month}월 ${date}일 점심시간(12시 50분~ 1시 30분)까지 꼭 반납부탁드립니다 ☂️`;
-
-                        showSuccess("대여가 완료되었습니다!", returnMessage, "var(--primary)");
+                        // 대여 완료 시 강조된 파란 박스에 반납일 안내
+                        const successMsg = `잊지 말고 꼭 반납해 주세요! ☂️<br><br><span style="color:#ef4444;">반납 기한: ${calculatedReturnStr}</span>`;
+                        showSuccess("대여가 완료되었습니다!", successMsg, "var(--primary)");
                     } else {
+                        // 반납 완료 멘트
                         showSuccess("반납이 완료되었습니다!", "양심을 지켜주셔서 감사합니다 💖", "var(--success)");
                     }
                 }
             }, 2000);
         }
 
-        function showSuccess(title, desc, color) {
+        function showSuccess(title, descHTML, color) {
             clearInterval(checkInterval);
             document.getElementById('qr-image').style.display = 'none';
             document.getElementById('success-title').innerText = title;
             document.getElementById('success-title').style.color = color;
-            document.getElementById('success-desc').innerText = desc;
+            
+            // 텍스트 대신 innerHTML을 사용하여 색상/줄바꿈 적용
+            const descBox = document.getElementById('success-desc');
+            descBox.innerHTML = descHTML;
+            descBox.style.background = currentMode === 'rent' ? '#f0f9ff' : '#f0fdf4';
+            descBox.style.borderColor = currentMode === 'rent' ? '#bae6fd' : '#bbf7d0';
+            descBox.style.color = currentMode === 'rent' ? '#0369a1' : '#166534';
+            
             document.getElementById('success-msg').style.display = 'block';
         }
     </script>
