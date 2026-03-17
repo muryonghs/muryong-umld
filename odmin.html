@@ -12,17 +12,14 @@
         :root { --primary: #3b82f6; --danger: #ef4444; --success: #10b981; --bg: #f8fafc; --text: #1e293b; }
         body { font-family: 'Pretendard', sans-serif; background-color: var(--bg); margin: 0; padding: 0; color: var(--text); padding-bottom: 40px; }
         
-        /* 상단 고정 헤더 */
         .app-header { background: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         .app-header h1 { margin: 0; font-size: 18px; font-weight: 800; }
         .header-btns { display: flex; gap: 8px; }
         .icon-btn { background: #f1f5f9; border: none; padding: 8px 12px; border-radius: 8px; font-size: 14px; font-weight: bold; color: #475569; cursor: pointer; }
         .icon-btn.danger { background: #fee2e2; color: var(--danger); }
 
-        /* 메인 콘텐츠 영역 */
         .content { padding: 20px; }
 
-        /* 📷 스캐너 버튼 & 영역 */
         .scanner-section { background: white; border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 24px; }
         #reader-container { display: none; margin-top: 15px; }
         #reader { width: 100%; border-radius: 12px; overflow: hidden; border: 2px solid var(--primary); }
@@ -31,11 +28,9 @@
         .btn-scan:active { transform: scale(0.98); }
         .btn-scan.stop { background: #64748b; box-shadow: none; margin-top: 10px; padding: 12px; }
 
-        /* 📝 모바일 카드형 리스트 디자인 */
         .list-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; padding: 0 4px; }
         .list-header h3 { margin: 0; font-size: 16px; color: #64748b; }
         
-        /* 카드 클릭(터치) 효과 추가 */
         .rental-card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; flex-direction: column; gap: 10px; border-left: 4px solid #cbd5e1; cursor: pointer; transition: transform 0.1s; }
         .rental-card:active { transform: scale(0.98); background-color: #f8fafc; }
         .rental-card.status-rent { border-left-color: var(--danger); }
@@ -55,7 +50,6 @@
         .umbrella-num { background: #f8fafc; padding: 8px 14px; border-radius: 10px; font-size: 14px; font-weight: bold; color: var(--primary); text-align: right; }
         .umbrella-num span { display: block; font-size: 11px; color: #94a3b8; font-weight: normal; margin-bottom: 2px; }
 
-        /* 🔍 하단 팝업(바텀 시트) 모달 디자인 */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: none; align-items: flex-end; justify-content: center; }
         .modal-content { background: white; width: 100%; max-width: 600px; border-radius: 24px 24px 0 0; padding: 25px; box-sizing: border-box; animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1); }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
@@ -187,13 +181,27 @@
                         alert('✅ 대여가 완료되었습니다.');
                     }
                 } else if (data.action === 'return') {
-                    const { error } = await myDb.from('umbrella_rentals')
-                        .update({ status: '반납완료', return_date: new Date().toISOString() })
+                    // 💡 1. 학번과 이름이 모두 정확히 일치하는 대여 기록 찾기
+                    const { data: checkData, error: checkError } = await myDb.from('umbrella_rentals')
+                        .select('id')
                         .eq('student_id', data.student_id)
+                        .eq('student_name', data.student_name)
                         .eq('status', '대여중');
-                    
-                    if (error) throw error;
-                    alert(`✅ ${data.student_name} 학생의 우산이 반납되었습니다.`);
+
+                    if (checkError) throw checkError;
+
+                    if (checkData && checkData.length > 0) {
+                        // 💡 2. 일치하는 기록이 있으면 그 줄만 업데이트
+                        const { error: updateError } = await myDb.from('umbrella_rentals')
+                            .update({ status: '반납완료', return_date: new Date().toISOString() })
+                            .eq('id', checkData[0].id);
+                        
+                        if (updateError) throw updateError;
+                        alert(`✅ ${data.student_name} 학생의 우산이 반납되었습니다.`);
+                    } else {
+                        // 💡 3. 일치하는 기록이 없으면 경고창 띄우기 (학생 폰에도 성공 화면 안 뜸)
+                        alert(`❌ 반납 실패!\n학번(${data.student_id})과 이름(${data.student_name})이 대여 시 입력한 정보와 정확히 일치하는지 확인해 주세요.\n(또는 대여 중인 우산이 없습니다.)`);
+                    }
                 }
             } catch (err) {
                 console.error(err);
@@ -204,7 +212,6 @@
             }
         }
 
-        // 📅 날짜 포맷 함수 (년-월-일 시:분 형식)
         function formatFullDate(dateString) {
             if (!dateString) return '-';
             const d = new Date(dateString);
@@ -226,11 +233,8 @@
                 const dateObj = new Date(isRent ? row.rent_date : row.return_date);
                 const timeStr = `${dateObj.getMonth()+1}/${dateObj.getDate()} ${String(dateObj.getHours()).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
                 
-                // 카드 요소 생성
                 const card = document.createElement('div');
                 card.className = `rental-card ${statusClass}`;
-                
-                // 💡 카드에 클릭(터치) 이벤트 연결
                 card.onclick = () => openModal(row);
 
                 card.innerHTML = `
@@ -253,7 +257,6 @@
             });
         }
 
-        // 🔍 모달(바텀 시트) 열기 함수
         function openModal(row) {
             document.getElementById('m-name-title').innerText = `${row.student_name} 상세 정보`;
             document.getElementById('m-id').innerText = row.student_id;
@@ -263,18 +266,14 @@
             document.getElementById('m-rent-date').innerText = formatFullDate(row.rent_date);
             document.getElementById('m-return-date').innerText = formatFullDate(row.return_date);
 
-            // 해당 학생의 정보로 QR코드 재생성
             const qrData = { student_id: row.student_id, student_name: row.student_name, phone_number: row.phone_number };
             const encodedData = encodeURIComponent(JSON.stringify(qrData));
             document.getElementById('m-qr-image').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodedData}&color=1e293b`;
 
-            // 모달 보이기
             document.getElementById('detail-modal').style.display = 'flex';
         }
 
-        // ✖️ 모달 닫기 함수
         function closeModal(event) {
-            // 어두운 배경(overlay)이나 X 버튼을 클릭했을 때만 닫힘
             if (event.target.id === 'detail-modal' || event.target.classList.contains('close-btn')) {
                 document.getElementById('detail-modal').style.display = 'none';
             }
