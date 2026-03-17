@@ -35,14 +35,14 @@
     </table>
 
     <script>
-        // 양심우산 DB 연결 (단 한 번만!)
+        // 🚨 이름 충돌 해결! (supabase -> myDb 로 변경)
         const supabaseUrl = 'https://urzbonndueqylygtzlus.supabase.co';
         const supabaseKey = 'sb_publishable_rZYklPBEFvoKZxatf_xAig_ceWd_epI';
-        const supabase = supabaseCreateClient.createClient(supabaseUrl, supabaseKey);
+        const myDb = supabase.createClient(supabaseUrl, supabaseKey); // 변경된 부분
 
         let isProcessing = false;
 
-        // 💡 무룡고 방식의 자동 UI 스캐너 실행!
+        // 자동 UI 스캐너 실행
         let html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
         html5QrcodeScanner.render(onScanSuccess);
 
@@ -56,14 +56,15 @@
                 if (data.action === 'rent') {
                     const umbrellaNum = prompt(`${data.student_name} 학생에게 빌려줄 우산 번호를 입력하세요:`);
                     if (umbrellaNum) {
-                        const { error } = await supabase.from('umbrella_rentals').insert([
+                        // DB 통신 시 myDb 사용
+                        const { error } = await myDb.from('umbrella_rentals').insert([
                             { student_id: data.student_id, student_name: data.student_name, phone_number: data.phone_number, umbrella_number: umbrellaNum, status: '대여중' }
                         ]);
                         if (error) throw error;
                         alert('✅ 대여 완료되었습니다!');
                     }
                 } else if (data.action === 'return') {
-                    const { error } = await supabase.from('umbrella_rentals')
+                    const { error } = await myDb.from('umbrella_rentals')
                         .update({ status: '반납완료', return_date: new Date().toISOString() })
                         .eq('student_id', data.student_id)
                         .eq('status', '대여중');
@@ -81,7 +82,8 @@
         }
 
         async function fetchRentals() {
-            const { data, error } = await supabase.from('umbrella_rentals').select('*').order('rent_date', { ascending: false }).limit(20);
+            // 현황 불러올 때도 myDb 사용
+            const { data, error } = await myDb.from('umbrella_rentals').select('*').order('rent_date', { ascending: false }).limit(20);
             if (error) return console.error(error);
 
             const tbody = document.getElementById('rental-list');
@@ -98,6 +100,7 @@
             });
         }
 
+        // 페이지 로드 시 현황 불러오기
         fetchRentals();
     </script>
 </body>
