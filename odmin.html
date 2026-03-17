@@ -8,14 +8,11 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; max-width: 800px; margin: 0 auto; padding: 15px; }
-        /* 카메라 화면 영역 */
         #reader { width: 100%; max-width: 500px; min-height: 250px; margin: 0 auto 15px auto; border: 2px dashed #ccc; background-color: #f9f9f9; display: flex; align-items: center; justify-content: center; color: #999; }
-        /* 모바일용 버튼 스타일 */
         .btn-group { display: flex; gap: 10px; margin-bottom: 20px; }
         .btn { flex: 1; padding: 15px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 8px; cursor: pointer; }
         #start-btn { background: #4CAF50; }
         #stop-btn { background: #f44336; display: none; }
-        
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
         th { background-color: #333; color: white; }
@@ -42,12 +39,11 @@
                 <th>우산번호</th>
             </tr>
         </thead>
-        <tbody id="rental-list">
-            </tbody>
+        <tbody id="rental-list"></tbody>
     </table>
 
     <script>
-        // 🚨 이 설정 코드는 딱 한 번만 있어야 합니다!
+        // 이 부분은 반드시 한 번만 있어야 합니다!
         const supabaseUrl = 'https://urzbonndueqylygtzlus.supabase.co';
         const supabaseKey = 'sb_publishable_rZYklPBEFvoKZxatf_xAig_ceWd_epI';
         const supabase = supabaseCreateClient.createClient(supabaseUrl, supabaseKey);
@@ -55,7 +51,6 @@
         let html5QrCode;
         let isProcessing = false;
 
-        // 스캐너 시작 함수
         function startScanner() {
             document.getElementById('reader').innerHTML = ""; 
             html5QrCode = new Html5Qrcode("reader");
@@ -69,28 +64,25 @@
                 document.getElementById('start-btn').style.display = 'none';
                 document.getElementById('stop-btn').style.display = 'block';
             }).catch((err) => {
-                alert("카메라를 켤 수 없습니다.\n(https 환경인지 확인해주세요!)\n상세오류: " + err);
+                alert("카메라를 켤 수 없습니다.\n상세오류: " + err);
                 document.getElementById('reader').innerHTML = "카메라 작동 실패";
             });
         }
 
-        // 스캐너 정지 함수
         function stopScanner() {
             if (html5QrCode) {
                 html5QrCode.stop().then(() => {
                     document.getElementById('start-btn').style.display = 'block';
                     document.getElementById('stop-btn').style.display = 'none';
                     document.getElementById('reader').innerHTML = "카메라가 꺼져있습니다.";
-                }).catch(err => console.error("스캐너 정지 오류", err));
+                }).catch(err => console.error(err));
             }
         }
 
-        // 스캔 성공 시
         async function onScanSuccess(decodedText) {
             if (isProcessing) return;
             isProcessing = true;
-            
-            stopScanner(); // 스캔 성공 시 잠시 멈춤
+            stopScanner(); 
 
             try {
                 const data = JSON.parse(decodedText);
@@ -99,13 +91,7 @@
                     const umbrellaNum = prompt(`${data.student_name} 학생에게 빌려줄 우산 번호를 입력하세요:`);
                     if (umbrellaNum) {
                         const { error } = await supabase.from('umbrella_rentals').insert([
-                            { 
-                                student_id: data.student_id, 
-                                student_name: data.student_name, 
-                                phone_number: data.phone_number,
-                                umbrella_number: umbrellaNum,
-                                status: '대여중'
-                            }
+                            { student_id: data.student_id, student_name: data.student_name, phone_number: data.phone_number, umbrella_number: umbrellaNum, status: '대여중' }
                         ]);
                         if (error) throw error;
                         alert('✅ 대여 완료되었습니다!');
@@ -121,29 +107,19 @@
                 }
             } catch (err) {
                 console.error(err);
-                alert('QR 코드 인식 오류 또는 DB 통신 에러가 발생했습니다.');
+                alert('QR 코드 인식 오류 또는 DB 에러가 발생했습니다.');
             } finally {
                 fetchRentals();
                 setTimeout(() => { isProcessing = false; }, 2000);
             }
         }
 
-        // 현황 불러오기
         async function fetchRentals() {
-            const { data, error } = await supabase
-                .from('umbrella_rentals')
-                .select('*')
-                .order('rent_date', { ascending: false })
-                .limit(20);
-
-            if (error) {
-                console.error(error);
-                return;
-            }
+            const { data, error } = await supabase.from('umbrella_rentals').select('*').order('rent_date', { ascending: false }).limit(20);
+            if (error) return console.error(error);
 
             const tbody = document.getElementById('rental-list');
             tbody.innerHTML = '';
-            
             data.forEach(row => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
