@@ -69,7 +69,7 @@
 <body>
 
     <header class="app-header">
-        <h1>무룡 양심우산 관리자 홈</h1>
+        <h1>양심우산관리자 홈</h1>
         <div class="header-btns">
             <button class="icon-btn" onclick="fetchRentals()">새로고침</button>
             <button class="icon-btn danger" onclick="resetList()">초기화</button>
@@ -79,7 +79,7 @@
     <div class="content">
         <div class="scanner-section">
             <button id="start-btn" class="btn-scan" onclick="startScanner()">
-                <span style="font-size: 20px;"></span> 학생 QR패스 스캔하기
+                <span style="font-size: 20px;"></span> 학생 QR코드 스캔하기
             </button>
             <div id="reader-container">
                 <div id="reader"></div>
@@ -122,7 +122,7 @@
             </div>
             
             <div class="qr-section">
-                <p>학생 고유 QR 코드</p>
+                <p>학생 고유 QR 코드 (스마트 스캔용)</p>
                 <img id="m-qr-image" src="" alt="QR">
             </div>
         </div>
@@ -168,25 +168,33 @@
 
             try {
                 const data = JSON.parse(decodedText);
+                let currentAction = data.action;
+
+                // 💡 [핵심] 스마트 스캔 기능: QR에 액션(대여/반납)이 없으면 자동 판별합니다.
+                if (!currentAction) {
+                    const { data: checkData } = await myDb.from('umbrella_rentals')
+                        .select('id').eq('student_id', data.student_id).eq('status', '대여중');
+                    
+                    // 빌린 게 있으면 반납, 없으면 대여로 스캐너가 알아서 인식합니다!
+                    if (checkData && checkData.length > 0) {
+                        currentAction = 'return';
+                    } else {
+                        currentAction = 'rent';
+                    }
+                }
                 
-                if (data.action === 'rent') {
+                if (currentAction === 'rent') {
                     const umbrellaNum = prompt(`[대여 승인]\n${data.student_name} 학생에게 빌려줄 우산 번호를 입력하세요:`);
                     if (umbrellaNum) {
-                        
-                        // 💡 1. [핵심] 우산 중복 대여 방지 (이미 누가 빌려갔는지 확인)
                         const { data: existing, error: checkErr } = await myDb.from('umbrella_rentals')
-                            .select('id')
-                            .eq('umbrella_number', umbrellaNum)
-                            .eq('status', '대여중');
+                            .select('id').eq('umbrella_number', umbrellaNum).eq('status', '대여중');
 
                         if (checkErr) throw checkErr;
-
                         if (existing && existing.length > 0) {
                             alert(`[대여 불가] ${umbrellaNum}번 우산은 현재 다른 학생이 대여 중입니다!\n반납 확인 후 다시 시도해 주세요.`);
-                            return; // 함수를 즉시 종료하고 밑으로 안 내려감
+                            return; 
                         }
 
-                        // 💡 2. [핵심] 시간 오차 해결 (관리자 폰의 현재 시간을 강제로 주입)
                         const { error } = await myDb.from('umbrella_rentals').insert([
                             { 
                                 student_id: data.student_id, 
@@ -194,13 +202,13 @@
                                 phone_number: data.phone_number, 
                                 umbrella_number: umbrellaNum, 
                                 status: '대여중',
-                                rent_date: new Date().toISOString() // 현재 시간 강제 전송!
+                                rent_date: new Date().toISOString()
                             }
                         ]);
                         if (error) throw error;
                         alert('대여가 완료되었습니다.');
                     }
-                } else if (data.action === 'return') {
+                } else if (currentAction === 'return') {
                     const { data: checkData, error: checkError } = await myDb.from('umbrella_rentals')
                         .select('id')
                         .eq('student_id', data.student_id)
@@ -210,7 +218,6 @@
                     if (checkError) throw checkError;
 
                     if (checkData && checkData.length > 0) {
-                        // 💡 반납 시간도 관리자 폰의 현재 시간으로 강제 업데이트
                         const { error: updateError } = await myDb.from('umbrella_rentals')
                             .update({ status: '반납완료', return_date: new Date().toISOString() })
                             .eq('id', checkData[0].id);
@@ -230,7 +237,6 @@
             }
         }
 
-        // 날짜 포맷 (년.월.일 시:분 형식)
         function formatFullDate(dateString) {
             if (!dateString) return '-';
             const d = new Date(dateString);
@@ -285,7 +291,9 @@
             document.getElementById('m-rent-date').innerText = formatFullDate(row.rent_date);
             document.getElementById('m-return-date').innerText = formatFullDate(row.return_date);
 
-            const qrData = { student_id: row.student_id, student_name: row.student_name, phone_number: row.phone_number };
+            // 💡 팝업창의 QR코드에도 상태에 맞는 액션 명령어를 명시적으로 추가해줍니다.
+            const actionType = row.status === '대여중' ? 'return' : 'rent';
+            const qrData = { action: actionType, student_id: row.student_id, student_name: row.student_name, phone_number: row.phone_number };
             const encodedData = encodeURIComponent(JSON.stringify(qrData));
             document.getElementById('m-qr-image').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodedData}&color=1e293b`;
 
@@ -310,7 +318,7 @@
                         alert("오류: " + error.message);
                     }
                 } else {
-                    alert("초기화가 취소되었습니다.");
+                    alert("취소되었습니다.");
                 }
             }
         }
