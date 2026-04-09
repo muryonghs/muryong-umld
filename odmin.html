@@ -20,25 +20,24 @@
         .icon-btn { background: #f1f5f9; border: none; padding: 8px 10px; border-radius: 8px; font-size: 13px; font-weight: bold; color: #475569; cursor: pointer; }
         .icon-btn.danger { background: #fee2e2; color: var(--danger); }
         
-        /* 💡 강조된 PDF 버튼 스타일 */
-        .btn-pdf-main { background: var(--purple); color: white; border: none; padding: 8px 14px; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: 0.2s; box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3); }
-        .btn-pdf-main:active { transform: scale(0.95); }
-
         .content { padding: 20px; }
 
         .scanner-section { background: white; border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 24px; }
         #reader-container { display: none; margin-top: 15px; }
-        #reader { width: 100%; border-radius: 12px; overflow: hidden; border: 2px solid var(--primary); }
+        #reader { width: 100%; border-radius: 12px; overflow: hidden; border: 2px solid var(--primary); background: #000; }
         
         .btn-scan { background: var(--primary); color: white; border: none; width: 100%; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.2s; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
         .btn-scan:active { transform: scale(0.98); }
         .btn-scan.stop { background: #64748b; box-shadow: none; margin-top: 10px; padding: 12px; flex-direction: row; gap: 8px; }
 
-        .btn-manual-return { background: var(--success); color: white; border: none; width: 100%; padding: 14px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); margin-top: 15px; }
-        .btn-manual-return:active { transform: scale(0.98); }
+        .btn-manual-return { background: var(--success); color: white; border: none; width: 100%; padding: 14px; border-radius: 12px; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 15px; }
+        .btn-delete-record { background: #f1f5f9; color: var(--danger); border: 1px solid #e2e8f0; width: 100%; padding: 14px; border-radius: 12px; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 10px; }
 
-        .list-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; padding: 0 4px; }
+        .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 4px; }
         .list-header h3 { margin: 0; font-size: 16px; color: #64748b; }
+        .list-header-btns { display: flex; gap: 8px; }
+        .btn-sm-main { background: var(--purple); color: white; border: none; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; }
+        .btn-sm-manage { background: var(--dark); color: white; border: none; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; }
         
         .rental-card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; flex-direction: column; gap: 10px; border-left: 4px solid #cbd5e1; cursor: pointer; transition: transform 0.1s; }
         .rental-card:active { transform: scale(0.98); background-color: #f8fafc; }
@@ -63,7 +62,7 @@
         .umbrella-num span { display: block; font-size: 11px; color: #94a3b8; font-weight: normal; margin-bottom: 2px; }
 
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: none; align-items: flex-end; justify-content: center; }
-        .modal-content { background: white; width: 100%; max-width: 600px; border-radius: 24px 24px 0 0; padding: 25px; box-sizing: border-box; animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1); }
+        .modal-content { background: white; width: 100%; max-width: 600px; border-radius: 24px 24px 0 0; padding: 25px; box-sizing: border-box; animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1); max-height: 90vh; overflow-y: auto; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
         
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; }
@@ -84,14 +83,14 @@
     <header class="app-header">
         <h1>무룡 양심우산 관리자 홈</h1>
         <div class="header-btns">
-            <button class="icon-btn danger" onclick="resetList()">🗑️ 전체 초기화</button>
+            <button class="icon-btn danger" onclick="resetList()">전체 초기화</button>
         </div>
     </header>
 
     <div class="content">
         <div class="scanner-section">
             <button id="start-btn" class="btn-scan" onclick="startScanner()" style="flex-direction: row;">
-                <span style="font-size: 20px;"></span> QR패스 스캔하기
+                QR패스 스캔하기
             </button>
             <div id="reader-container">
                 <div id="reader"></div>
@@ -99,9 +98,12 @@
             </div>
         </div>
 
-        <div class="list-header" style="align-items: center;">
-            <h3>전체 이용/상태 내역</h3>
-            <button class="btn-pdf-main" onclick="openPdfModal()">PDF 출력</button>
+        <div class="list-header">
+            <h3>전체 이용 내역</h3>
+            <div class="list-header-btns">
+                <button class="btn-sm-manage" onclick="openBrokenModal()">우산 관리</button>
+                <button class="btn-sm-main" onclick="openPdfModal()">PDF 출력</button>
+            </div>
         </div>
         
         <div id="rental-list"></div>
@@ -118,15 +120,26 @@
             </p>
             <div style="display: flex; flex-direction: column; gap: 12px;">
                 <button class="btn-scan" style="background: var(--success); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);" onclick="executeReturn(false)">
-                    파손 없음
+                    정상 반납
                 </button>
                 <button class="btn-scan" style="background: var(--dark); box-shadow: 0 4px 12px rgba(51, 65, 85, 0.3);" onclick="executeReturn(true)">
-                    파손됨
+                    파손됨 (다음 대여 차단)
                 </button>
                 <button class="btn-scan" style="background: #f1f5f9; color: #64748b; box-shadow: none;" onclick="document.getElementById('damage-modal').style.display='none'">
-                    취소 (뒤로가기)
+                    취소
                 </button>
             </div>
+        </div>
+    </div>
+
+    <div id="broken-modal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-content" style="border-radius: 24px; padding: 20px;">
+            <div class="modal-header">
+                <h3>파손 우산 관리</h3>
+                <button class="close-btn" onclick="closeModal(event)">✕</button>
+            </div>
+            <p style="color: #64748b; font-size: 13px; margin-bottom: 15px;">해당 우산을 클릭하면 수리 완료(차단 해제) 처리됩니다.</p>
+            <div id="broken-list"></div>
         </div>
     </div>
 
@@ -138,11 +151,11 @@
             </div>
             <p style="color: #64748b; font-size: 14px; margin-bottom: 20px; line-height: 1.4;">추출할 명단의 용도를 선택해 주세요.</p>
             <div style="display: flex; flex-direction: column; gap: 12px;">
-                <button class="btn-scan" style="background: var(--purple);" onclick="executePDF('public')">
+                <button id="btn-pdf-public" class="btn-scan" style="background: var(--purple);" onclick="executePDF('public')">
                     공개용 명단 (게시판/공지용)
                     <span style="font-size: 13px; font-weight: normal; margin-top: 4px; color: #ede9fe;">이름 가운데 가림, 학년만 표시</span>
                 </button>
-                <button class="btn-scan" style="background: #475569;" onclick="executePDF('admin')">
+                <button id="btn-pdf-admin" class="btn-scan" style="background: #475569;" onclick="executePDF('admin')">
                     관리자용 명단 (내부 보관용)
                     <span style="font-size: 13px; font-weight: normal; margin-top: 4px; color: #f1f5f9;">학번, 이름 전체 표시</span>
                 </button>
@@ -178,11 +191,12 @@
             </div>
             
             <div class="qr-section">
-                <p>학생 고유 QR 코드 (스마트 스캔용)</p>
+                <p>학생 고유 QR 코드</p>
                 <img id="m-qr-image" src="" alt="QR">
             </div>
 
             <button id="manual-return-btn" class="btn-manual-return" style="display: none;">수동 반납처리</button>
+            <button id="delete-record-btn" class="btn-delete-record">이 기록 삭제</button>
         </div>
     </div>
 
@@ -190,8 +204,6 @@
         const myDb = supabase.createClient('https://urzbonndueqylygtzlus.supabase.co', 'sb_publishable_rZYklPBEFvoKZxatf_xAig_ceWd_epI');
         let html5QrCode;
         let isProcessing = false;
-        
-        // 💡 반납 대기 데이터를 저장할 변수
         let pendingReturnData = null;
 
         function startScanner() {
@@ -199,13 +211,14 @@
             document.getElementById('reader-container').style.display = 'block';
             
             html5QrCode = new Html5Qrcode("reader");
+            // 카메라 설정 최적화: 후면 메인 카메라 우선 적용
             html5QrCode.start(
-                { facingMode: "environment" },
-                { fps: 10, qrbox: { width: 220, height: 220 } },
+                { facingMode: { ideal: "environment" } },
+                { fps: 10, qrbox: { width: 250, height: 250 } },
                 onScanSuccess,
                 (errorMessage) => { }
             ).catch((err) => {
-                alert("카메라를 켤 수 없습니다. 권한을 확인해주세요.");
+                alert("카메라를 켤 수 없습니다. 브라우저 권한 설정을 확인해주세요.");
                 stopScanner();
             });
         }
@@ -249,7 +262,7 @@
                             .select('id').eq('umbrella_number', umbrellaNum).eq('status', '파손');
                         
                         if (brokenData && brokenData.length > 0) {
-                            alert(`[대여 불가] ${umbrellaNum}번 우산은 현재 파손되어 수리 대기 중입니다!\n다른 우산을 입력해 주세요.`);
+                            alert(`대여 불가: ${umbrellaNum}번 우산은 현재 파손 등록되어 있습니다. 다른 우산을 입력해 주세요.`);
                             return;
                         }
 
@@ -258,7 +271,7 @@
 
                         if (checkErr) throw checkErr;
                         if (existing && existing.length > 0) {
-                            alert(`[대여 불가] ${umbrellaNum}번 우산은 현재 다른 학생이 대여 중입니다!`);
+                            alert(`대여 불가: ${umbrellaNum}번 우산은 현재 다른 학생이 대여 중입니다.`);
                             return; 
                         }
 
@@ -285,7 +298,6 @@
                     if (checkError) throw checkError;
 
                     if (checkData && checkData.length > 0) {
-                        // 💡 알림창 대신 커스텀 모달 띄우기
                         const targetRecord = checkData[0];
                         pendingReturnData = {
                             id: targetRecord.id,
@@ -298,21 +310,20 @@
                         document.getElementById('damage-modal').style.display = 'flex';
 
                     } else {
-                        alert(`반납 실패!\n학번(${data.student_id})과 이름(${data.student_name})이 대여 시 입력한 정보와 일치하지 않거나 대여 중인 우산이 없습니다.`);
+                        alert(`반납 실패: 학번(${data.student_id})과 이름(${data.student_name})이 대여 정보와 일치하지 않거나 대여 중인 우산이 없습니다.`);
                     }
                 }
             } catch (err) {
                 console.error(err);
-                alert('유효하지 않은 QR이거나 DB 연결에 실패했습니다.');
+                alert('유효하지 않은 QR 정보이거나 DB 연결에 실패했습니다.');
             } finally {
                 fetchRentals();
                 setTimeout(() => { isProcessing = false; }, 2000);
             }
         }
 
-        // 💡 모달에서 버튼을 눌렀을 때 실행되는 실제 반납 로직
         async function executeReturn(isDamaged) {
-            document.getElementById('damage-modal').style.display = 'none'; // 창 닫기
+            document.getElementById('damage-modal').style.display = 'none';
             if (!pendingReturnData) return;
 
             const { id, student_name, umbrella_number } = pendingReturnData;
@@ -332,18 +343,17 @@
                         status: '파손',
                         rent_date: new Date().toISOString()
                     }]);
-                    alert(`${umbrella_number}번 우산 파손 처리 완료!\n(수리 전까지 이 우산은 대여가 차단됩니다)`);
+                    alert(`${umbrella_number}번 우산 파손 처리 완료. 수리 전까지 대여가 제한됩니다.`);
                 } else {
-                    alert(`정상 반납이 완료되었습니다.`);
+                    alert('정상 반납이 완료되었습니다.');
                 }
             } catch (err) {
                 alert("오류 발생: " + err.message);
             } finally {
-                pendingReturnData = null; // 초기화
-                fetchRentals(); // 새로고침
+                pendingReturnData = null; 
+                fetchRentals(); 
             }
         }
-
 
         function formatFullDate(dateString) {
             if (!dateString) return '-';
@@ -354,6 +364,7 @@
         async function fetchRentals() {
             const { data, error } = await myDb.from('umbrella_rentals')
                 .select('*')
+                .neq('status', '파손') // 메인 화면에서 파손 기록은 숨김
                 .order('rent_date', { ascending: false });
 
             if (error) return console.error(error);
@@ -363,42 +374,16 @@
             
             data.forEach(row => {
                 const isRent = row.status === '대여중';
-                const isBroken = row.status === '파손'; 
-                
-                let statusClass = 'status-return';
-                let badgeClass = 'return';
-                let timeLabel = '반납일시';
-                let dateObj = new Date(row.return_date || row.rent_date); 
-                
-                if (isRent) {
-                    statusClass = 'status-rent';
-                    badgeClass = 'rent';
-                    timeLabel = '대여일시';
-                    dateObj = new Date(row.rent_date);
-                } else if (isBroken) {
-                    statusClass = 'status-broken';
-                    badgeClass = 'broken';
-                    timeLabel = '파손등록';
-                    dateObj = new Date(row.rent_date);
-                }
+                const statusClass = isRent ? 'status-rent' : 'status-return';
+                const badgeClass = isRent ? 'rent' : 'return';
+                const timeLabel = isRent ? '대여일시' : '반납일시';
+                const dateObj = new Date(isRent ? row.rent_date : (row.return_date || row.rent_date)); 
 
                 const timeStr = `${dateObj.getMonth()+1}/${dateObj.getDate()} ${String(dateObj.getHours()).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
                 
                 const card = document.createElement('div');
                 card.className = `rental-card ${statusClass}`;
-                
-                card.onclick = () => {
-                    if (isBroken) {
-                        if(confirm(`${row.umbrella_number}번 우산 수리가 완료되었습니까?\n\n[확인]을 누르시면 파손 상태가 해제되어 다시 대여할 수 있습니다.`)) {
-                            myDb.from('umbrella_rentals').delete().eq('id', row.id).then(() => {
-                                alert('파손 해제 완료!');
-                                fetchRentals();
-                            });
-                        }
-                    } else {
-                        openModal(row);
-                    }
-                };
+                card.onclick = () => openModal(row);
 
                 card.innerHTML = `
                     <div class="card-top">
@@ -408,7 +393,7 @@
                     <div class="card-body">
                         <div class="student-info">
                             <span class="s-name">${row.student_name}</span>
-                            <span class="s-id" style="color: ${isBroken ? '#ef4444' : '#64748b'}">${isBroken ? '대여 불가 상태' : row.student_id}</span>
+                            <span class="s-id">${row.student_id}</span>
                         </div>
                         <div class="umbrella-num">
                             <span>우산 번호</span>
@@ -418,6 +403,56 @@
                 `;
                 listContainer.appendChild(card);
             });
+        }
+
+        async function fetchBroken() {
+            const { data, error } = await myDb.from('umbrella_rentals')
+                .select('*')
+                .eq('status', '파손')
+                .order('rent_date', { ascending: false });
+
+            const listContainer = document.getElementById('broken-list');
+            listContainer.innerHTML = '';
+
+            if (error || data.length === 0) {
+                listContainer.innerHTML = '<p style="text-align:center; color:#64748b; font-size:14px; padding:20px;">파손 등록된 우산이 없습니다.</p>';
+                return;
+            }
+
+            data.forEach(row => {
+                const dateObj = new Date(row.rent_date);
+                const timeStr = `${dateObj.getMonth()+1}/${dateObj.getDate()} ${String(dateObj.getHours()).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
+                
+                const card = document.createElement('div');
+                card.className = 'rental-card status-broken';
+                card.onclick = () => {
+                    if(confirm(`[우산 관리]\n${row.umbrella_number}번 우산 수리가 완료되었습니까?\n확인을 누르면 파손 상태가 해제되어 다시 대여할 수 있습니다.`)) {
+                        myDb.from('umbrella_rentals').delete().eq('id', row.id).then(() => {
+                            alert('수리 완료 및 파손 해제가 처리되었습니다.');
+                            fetchBroken();
+                        });
+                    }
+                };
+
+                card.innerHTML = `
+                    <div class="card-top">
+                        <span class="badge broken">${row.status}</span>
+                        <span class="time-text">등록일시: ${timeStr}</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="student-info">
+                            <span class="s-name">${row.umbrella_number}번 우산</span>
+                            <span class="s-id" style="color: #ef4444;">현재 대여 불가 상태</span>
+                        </div>
+                    </div>
+                `;
+                listContainer.appendChild(card);
+            });
+        }
+
+        function openBrokenModal() {
+            document.getElementById('broken-modal').style.display = 'flex';
+            fetchBroken();
         }
 
         function openPdfModal() {
@@ -438,10 +473,12 @@
             const encodedData = encodeURIComponent(JSON.stringify(qrData));
             document.getElementById('m-qr-image').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodedData}&color=1e293b`;
 
+            // 삭제 버튼 처리
+            document.getElementById('delete-record-btn').onclick = () => deleteRecord(row.id);
+
             const manualBtn = document.getElementById('manual-return-btn');
             if (row.status === '대여중') {
                 manualBtn.style.display = 'block';
-                // 💡 수동 반납 시에도 새로운 직관적 모달창 띄우기
                 manualBtn.onclick = () => {
                     pendingReturnData = {
                         id: row.id,
@@ -449,7 +486,6 @@
                         umbrella_number: row.umbrella_number
                     };
                     document.getElementById('detail-modal').style.display = 'none';
-                    
                     document.getElementById('d-student-name').innerText = row.student_name;
                     document.getElementById('d-umbrella-num').innerText = row.umbrella_number;
                     document.getElementById('damage-modal').style.display = 'flex';
@@ -461,7 +497,18 @@
             document.getElementById('detail-modal').style.display = 'flex';
         }
 
-        // 통합 모달 닫기
+        async function deleteRecord(recordId) {
+            if(confirm("주의: 이 이용 기록을 삭제하시겠습니까?\n삭제 후에는 복구할 수 없습니다.")) {
+                const { error } = await myDb.from('umbrella_rentals').delete().eq('id', recordId);
+                if(error) {
+                    alert("오류 발생: " + error.message);
+                } else {
+                    document.getElementById('detail-modal').style.display = 'none';
+                    fetchRentals();
+                }
+            }
+        }
+
         function closeModal(event) {
             if (event.target.classList.contains('modal-overlay') || event.target.classList.contains('close-btn')) {
                 event.target.closest('.modal-overlay').style.display = 'none';
@@ -469,24 +516,29 @@
         }
 
         async function resetList() {
-            if(confirm("⚠️ [경고] 모든 대여/반납 기록을 영구적으로 삭제하시겠습니까?")) {
+            if(confirm("[경고] 모든 대여/반납 기록을 영구적으로 삭제하시겠습니까?")) {
                 const confirmWord = prompt("진행하려면 '초기화' 라고 입력해주세요.");
                 if(confirmWord === '초기화') {
                     const { error } = await myDb.from('umbrella_rentals').delete().neq('id', 0);
                     if(!error) {
-                        alert("초기화 완료");
+                        alert("초기화가 완료되었습니다.");
                         fetchRentals();
                     } else {
                         alert("오류: " + error.message);
                     }
                 } else {
-                    alert("취소되었습니다.");
+                    alert("초기화가 취소되었습니다.");
                 }
             }
         }
 
         async function executePDF(type) {
-            document.getElementById('pdf-modal').style.display = 'none'; 
+            // 버튼 텍스트 변경 및 클릭 방지 (모바일 다운로드 원활화 처리)
+            const btn = type === 'public' ? document.getElementById('btn-pdf-public') : document.getElementById('btn-pdf-admin');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = 'PDF 생성 중... 잠시만 기다려주세요.';
+            btn.style.pointerEvents = 'none';
+
             const isPublic = (type === 'public');
             
             const { data, error } = await myDb.from('umbrella_rentals')
@@ -496,14 +548,14 @@
 
             if (error) {
                 alert('데이터를 불러오지 못했습니다.');
+                resetPdfButton(btn, originalText);
                 return;
             }
             if (!data || data.length === 0) {
-                alert('현재 미반납자가 0명입니다!');
+                alert('현재 미반납자가 0명입니다.');
+                resetPdfButton(btn, originalText);
                 return;
             }
-
-            alert('PDF 파일을 생성합니다. 잠시만 기다려주세요...');
 
             const container = document.createElement('div');
             container.style.padding = '30px';
@@ -559,7 +611,7 @@
             
             if(isPublic) {
                 tableHTML += `<div style="margin-top:30px; padding: 15px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; text-align:center;">
-                                <span style="font-weight:bold; color:#ef4444; font-size: 15px;">위 학생들은 학생회실로 우산을 반납해 주시기 바랍니다.</span>
+                                <span style="font-weight:bold; color:#ef4444; font-size: 15px;">위 학생들은 학생회실로 신속히 우산을 반납해 주시기 바랍니다.</span>
                               </div>`;
             }
             
@@ -573,7 +625,19 @@
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
-            html2pdf().set(opt).from(container).save();
+            // 비동기 처리하여 멈춤 현상 해결
+            html2pdf().set(opt).from(container).save().then(() => {
+                resetPdfButton(btn, originalText);
+                document.getElementById('pdf-modal').style.display = 'none'; 
+            }).catch(err => {
+                alert('PDF 생성 중 문제가 발생했습니다.');
+                resetPdfButton(btn, originalText);
+            });
+        }
+
+        function resetPdfButton(btn, text) {
+            btn.innerHTML = text;
+            btn.style.pointerEvents = 'auto';
         }
 
         fetchRentals();
