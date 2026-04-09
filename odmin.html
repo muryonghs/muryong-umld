@@ -91,7 +91,7 @@
     <div class="content">
         <div class="scanner-section">
             <button id="start-btn" class="btn-scan" onclick="startScanner()" style="flex-direction: row;">
-                <span style="font-size: 20px;">📷</span> QR패스 스캔하기
+                <span style="font-size: 20px;"></span> QR패스 스캔하기
             </button>
             <div id="reader-container">
                 <div id="reader"></div>
@@ -101,7 +101,7 @@
 
         <div class="list-header" style="align-items: center;">
             <h3>전체 이용/상태 내역</h3>
-            <button class="btn-pdf-main" onclick="openPdfModal()">📄 PDF 다운로드</button>
+            <button class="btn-pdf-main" onclick="openPdfModal()">PDF 출력</button>
         </div>
         
         <div id="rental-list"></div>
@@ -110,7 +110,7 @@
     <div id="damage-modal" class="modal-overlay" onclick="closeModal(event)">
         <div class="modal-content" style="max-width: 360px; text-align: center; border-radius: 24px;">
             <div class="modal-header" style="justify-content: center; border: none; padding-bottom: 0;">
-                <h3 style="color: #0f172a; font-size: 22px;">☂️ 우산 상태 확인</h3>
+                <h3 style="color: #0f172a; font-size: 22px;">우산 상태 확인</h3>
             </div>
             <p style="color: #64748b; font-size: 15px; margin-bottom: 25px; line-height: 1.5;">
                 <strong id="d-student-name" style="color: var(--primary);"></strong> 학생이 반납하는<br>
@@ -118,10 +118,10 @@
             </p>
             <div style="display: flex; flex-direction: column; gap: 12px;">
                 <button class="btn-scan" style="background: var(--success); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);" onclick="executeReturn(false)">
-                    ✅ 파손 없음 (정상 반납)
+                    파손 없음
                 </button>
                 <button class="btn-scan" style="background: var(--dark); box-shadow: 0 4px 12px rgba(51, 65, 85, 0.3);" onclick="executeReturn(true)">
-                    🚨 파손됨 (다음 대여 차단)
+                    파손됨
                 </button>
                 <button class="btn-scan" style="background: #f1f5f9; color: #64748b; box-shadow: none;" onclick="document.getElementById('damage-modal').style.display='none'">
                     취소 (뒤로가기)
@@ -133,17 +133,17 @@
     <div id="pdf-modal" class="modal-overlay" onclick="closeModal(event)">
         <div class="modal-content" style="max-width: 360px;">
             <div class="modal-header">
-                <h3>📄 PDF 출력 옵션</h3>
+                <h3>PDF 출력 옵션</h3>
                 <button class="close-btn" onclick="closeModal(event)">✕</button>
             </div>
             <p style="color: #64748b; font-size: 14px; margin-bottom: 20px; line-height: 1.4;">추출할 명단의 용도를 선택해 주세요.</p>
             <div style="display: flex; flex-direction: column; gap: 12px;">
                 <button class="btn-scan" style="background: var(--purple);" onclick="executePDF('public')">
-                    📢 공개용 명단 (게시판/공지용)
+                    공개용 명단 (게시판/공지용)
                     <span style="font-size: 13px; font-weight: normal; margin-top: 4px; color: #ede9fe;">이름 가운데 가림, 학년만 표시</span>
                 </button>
                 <button class="btn-scan" style="background: #475569;" onclick="executePDF('admin')">
-                    🔒 관리자용 명단 (내부 보관용)
+                    관리자용 명단 (내부 보관용)
                     <span style="font-size: 13px; font-weight: normal; margin-top: 4px; color: #f1f5f9;">학번, 이름 전체 표시</span>
                 </button>
             </div>
@@ -332,9 +332,9 @@
                         status: '파손',
                         rent_date: new Date().toISOString()
                     }]);
-                    alert(`🚨 ${umbrella_number}번 우산 파손 처리 완료!\n(수리 전까지 대여가 차단됩니다)`);
+                    alert(`${umbrella_number}번 우산 파손 처리 완료!\n(수리 전까지 이 우산은 대여가 차단됩니다)`);
                 } else {
-                    alert(`✅ 정상 반납이 완료되었습니다.`);
+                    alert(`정상 반납이 완료되었습니다.`);
                 }
             } catch (err) {
                 alert("오류 발생: " + err.message);
