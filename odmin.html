@@ -79,17 +79,17 @@
 <body>
 
     <header class="app-header">
-        <h1>☂️ 관리자 홈</h1>
+        <h1>무룡 양심우산 관리자 홈</h1>
         <div class="header-btns">
-            <button class="icon-btn pdf" onclick="openPdfModal()">📄 PDF출력</button>
-            <button class="icon-btn danger" onclick="resetList()">🗑️ 초기화</button>
+            <button class="icon-btn pdf" onclick="openPdfModal()">PDF출력</button>
+            <button class="icon-btn danger" onclick="resetList()">초기화</button>
         </div>
     </header>
 
     <div class="content">
         <div class="scanner-section">
             <button id="start-btn" class="btn-scan" onclick="startScanner()" style="flex-direction: row;">
-                <span style="font-size: 20px;">📷</span> 학생 QR코드 스캔하기
+                <span style="font-size: 20px;"></span> QR패스 스캔하기
             </button>
             <div id="reader-container">
                 <div id="reader"></div>
@@ -107,17 +107,17 @@
     <div id="pdf-modal" class="modal-overlay" onclick="closeModal(event)">
         <div class="modal-content" style="max-width: 360px;">
             <div class="modal-header">
-                <h3>📄 PDF 출력 옵션</h3>
+                <h3>PDF 출력 옵션</h3>
                 <button class="close-btn" onclick="closeModal(event)">✕</button>
             </div>
             <p style="color: #64748b; font-size: 14px; margin-bottom: 20px; line-height: 1.4;">추출할 명단의 용도를 선택해 주세요.</p>
             <div style="display: flex; flex-direction: column; gap: 12px;">
                 <button class="btn-scan" style="background: var(--purple);" onclick="executePDF('public')">
-                    📢 공개용 명단 (게시판/공지용)
+                    공개용 명단 (게시판/공지용)
                     <span style="font-size: 13px; font-weight: normal; margin-top: 4px; color: #ede9fe;">이름 가운데 가림, 학년만 표시</span>
                 </button>
                 <button class="btn-scan" style="background: #475569;" onclick="executePDF('admin')">
-                    🔒 관리자용 명단 (내부 보관용)
+                    관리자용 명단 (내부 보관용)
                     <span style="font-size: 13px; font-weight: normal; margin-top: 4px; color: #f1f5f9;">학번, 이름 전체 표시</span>
                 </button>
             </div>
@@ -156,7 +156,7 @@
                 <img id="m-qr-image" src="" alt="QR">
             </div>
 
-            <button id="manual-return-btn" class="btn-manual-return" style="display: none;">✅ 이 우산 수동 반납하기</button>
+            <button id="manual-return-btn" class="btn-manual-return" style="display: none;">수동 반납처리</button>
         </div>
     </div>
 
@@ -214,13 +214,13 @@
                 }
                 
                 if (currentAction === 'rent') {
-                    const umbrellaNum = prompt(`☂️ [대여 승인]\n${data.student_name} 학생에게 빌려줄 우산 번호를 입력하세요:`);
+                    const umbrellaNum = prompt(`[대여 승인]\n${data.student_name} 학생에게 빌려줄 우산 번호를 입력하세요:`);
                     if (umbrellaNum) {
                         const { data: brokenData } = await myDb.from('umbrella_rentals')
                             .select('id').eq('umbrella_number', umbrellaNum).eq('status', '파손');
                         
                         if (brokenData && brokenData.length > 0) {
-                            alert(`❌ [대여 불가] ${umbrellaNum}번 우산은 현재 파손되어 수리 대기 중입니다!\n다른 우산을 입력해 주세요.`);
+                            alert(`[대여 불가] ${umbrellaNum}번 우산은 현재 파손되어 수리 대기 중입니다!\n다른 우산을 입력해 주세요.`);
                             return;
                         }
 
@@ -229,7 +229,7 @@
 
                         if (checkErr) throw checkErr;
                         if (existing && existing.length > 0) {
-                            alert(`❌ [대여 불가] ${umbrellaNum}번 우산은 현재 다른 학생이 대여 중입니다!`);
+                            alert(`[대여 불가] ${umbrellaNum}번 우산은 현재 다른 학생이 대여 중입니다!`);
                             return; 
                         }
 
@@ -244,7 +244,7 @@
                             }
                         ]);
                         if (error) throw error;
-                        alert('✅ 대여가 완료되었습니다.');
+                        alert('대여가 완료되었습니다.');
                     }
                 } else if (currentAction === 'return') {
                     const { data: checkData, error: checkError } = await myDb.from('umbrella_rentals')
@@ -259,7 +259,7 @@
                         const targetRecord = checkData[0];
                         const umbrellaNum = targetRecord.umbrella_number;
 
-                        const isDamaged = confirm(`☂️ 반납 처리: [${umbrellaNum}번] 우산\n\n⚠️ 이 우산에 파손된 부분이 있습니까?\n\n- [확인] 파손 처리 (다음 대여 제한)\n- [취소] 정상 반납`);
+                        const isDamaged = confirm(`반납 처리: [${umbrellaNum}번] 우산\n\n⚠️ 이 우산에 파손된 부분이 있습니까?\n\n- [확인] 파손 처리 (다음 대여 제한)\n- [취소] 정상 반납`);
 
                         const { error: updateError } = await myDb.from('umbrella_rentals')
                             .update({ status: '반납완료', return_date: new Date().toISOString() })
@@ -269,17 +269,17 @@
                         if (isDamaged) {
                             await myDb.from('umbrella_rentals').insert([{
                                 student_id: '0000',
-                                student_name: '⚠️ 수리 필요',
+                                student_name: '수리 필요',
                                 umbrella_number: umbrellaNum,
                                 status: '파손',
                                 rent_date: new Date().toISOString()
                             }]);
                             alert(`🚨 ${umbrellaNum}번 우산이 [파손] 처리되어 다음 대여가 제한됩니다.`);
                         } else {
-                            alert(`✅ ${data.student_name} 학생 우산 정상 반납 완료!`);
+                            alert(`${data.student_name} 학생 우산 정상 반납 완료!`);
                         }
                     } else {
-                        alert(`❌ 반납 실패!\n학번(${data.student_id})과 이름(${data.student_name})이 대여 시 입력한 정보와 일치하지 않거나 대여 중인 우산이 없습니다.`);
+                        alert(`반납 실패!\n학번(${data.student_id})과 이름(${data.student_name})이 대여 시 입력한 정보와 일치하지 않거나 대여 중인 우산이 없습니다.`);
                     }
                 }
             } catch (err) {
@@ -335,9 +335,9 @@
                 
                 card.onclick = () => {
                     if (isBroken) {
-                        if(confirm(`🛠️ ${row.umbrella_number}번 우산 수리가 완료되었습니까?\n\n[확인]을 누르시면 파손 상태가 해제되어 다시 대여할 수 있습니다.`)) {
+                        if(confirm(`${row.umbrella_number}번 우산 수리가 완료되었습니까?\n\n[확인]을 누르시면 파손 상태가 해제되어 다시 대여할 수 있습니다.`)) {
                             myDb.from('umbrella_rentals').delete().eq('id', row.id).then(() => {
-                                alert('✅ 파손 해제 완료!');
+                                alert('파손 해제 완료!');
                                 fetchRentals();
                             });
                         }
@@ -408,14 +408,14 @@
                 if (isDamaged) {
                     await myDb.from('umbrella_rentals').insert([{
                         student_id: '0000',
-                        student_name: '⚠️ 수리 필요',
+                        student_name: '수리 필요',
                         umbrella_number: umbrellaNum,
                         status: '파손',
                         rent_date: new Date().toISOString()
                     }]);
-                    alert(`✅ 수동 반납 및 [${umbrellaNum}번] 파손 처리 완료!`);
+                    alert(`수동 반납 및 [${umbrellaNum}번] 파손 처리 완료!`);
                 } else {
-                    alert(`✅ 정상 반납 완료!`);
+                    alert(`정상 반납 완료!`);
                 }
                 document.getElementById('detail-modal').style.display = 'none'; 
                 fetchRentals(); 
@@ -434,7 +434,7 @@
                 if(confirmWord === '초기화') {
                     const { error } = await myDb.from('umbrella_rentals').delete().neq('id', 0);
                     if(!error) {
-                        alert("✅ 초기화 완료");
+                        alert("초기화 완료");
                         fetchRentals();
                     } else {
                         alert("오류: " + error.message);
@@ -459,17 +459,17 @@
                 return;
             }
             if (!data || data.length === 0) {
-                alert('🎉 현재 미반납자가 0명입니다!');
+                alert('현재 미반납자가 0명입니다');
                 return;
             }
 
-            alert('📄 PDF 파일을 생성합니다. 잠시만 기다려주세요...');
+            alert('PDF 파일을 생성합니다. 잠시만 기다려주세요...');
 
             const container = document.createElement('div');
             container.style.padding = '30px';
             container.style.fontFamily = "'Pretendard', sans-serif";
 
-            const pdfTitle = isPublic ? "☂️ 양심우산 미반납자 명단 (공개용)" : "☂️ 양심우산 미반납자 명단 (내부용)";
+            const pdfTitle = isPublic ? "양심우산 미반납자 명단 (공개용)" : "양심우산 미반납자 명단 (내부용)";
 
             let tableHTML = `
                 <h2 style="text-align:center; color:#0f172a; margin-bottom:10px; font-size:24px;">${pdfTitle}</h2>
@@ -519,7 +519,7 @@
             
             if(isPublic) {
                 tableHTML += `<div style="margin-top:30px; padding: 15px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; text-align:center;">
-                                <span style="font-weight:bold; color:#ef4444; font-size: 15px;">⚠️ 위 학생들은 학생회실로 신속히 우산을 반납해 주시기 바랍니다.</span>
+                                <span style="font-weight:bold; color:#ef4444; font-size: 15px;">위 학생들은 학생회실로 우산을 반납해 주시기 바랍니다.</span>
                               </div>`;
             }
             
