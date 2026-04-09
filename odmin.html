@@ -259,7 +259,7 @@
                         const targetRecord = checkData[0];
                         const umbrellaNum = targetRecord.umbrella_number;
 
-                        const isDamaged = confirm(`반납 처리: [${umbrellaNum}번] 우산\n\n⚠️ 이 우산에 파손된 부분이 있습니까?\n\n- [확인] 파손 처리 (다음 대여 제한)\n- [취소] 정상 반납`);
+                        const isDamaged = confirm(`반납 처리: [${umbrellaNum}번] 우산\n\n⚠️ 이 우산에 파손된 부분이 있습니까?\n\n- [확인] 파손 처리\n- [취소] 정상 반납`);
 
                         const { error: updateError } = await myDb.from('umbrella_rentals')
                             .update({ status: '반납완료', return_date: new Date().toISOString() })
@@ -396,7 +396,7 @@
         }
 
         async function processManualReturn(recordId, studentName, umbrellaNum) {
-            const isDamaged = confirm(`⚠️ ${studentName} 학생 우산을 수동 반납합니다.\n\n이 우산에 파손된 부분이 있습니까?\n- [확인]: 파손 (다음 대여 제한)\n- [취소]: 정상`);
+            const isDamaged = confirm(`⚠️ ${studentName} 학생 우산을 수동 반납합니다.\n\n이 우산에 파손된 부분이 있습니까?\n- [확인]: 파손\n- [취소]: 정상`);
 
             const { error } = await myDb.from('umbrella_rentals')
                 .update({ status: '반납완료', return_date: new Date().toISOString() })
