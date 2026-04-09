@@ -19,7 +19,10 @@
         .header-btns { display: flex; gap: 6px; }
         .icon-btn { background: #f1f5f9; border: none; padding: 8px 10px; border-radius: 8px; font-size: 13px; font-weight: bold; color: #475569; cursor: pointer; }
         .icon-btn.danger { background: #fee2e2; color: var(--danger); }
-        .icon-btn.pdf { background: #ede9fe; color: var(--purple); } 
+        
+        /* 💡 강조된 PDF 버튼 스타일 */
+        .btn-pdf-main { background: var(--purple); color: white; border: none; padding: 8px 14px; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: 0.2s; box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3); }
+        .btn-pdf-main:active { transform: scale(0.95); }
 
         .content { padding: 20px; }
 
@@ -81,15 +84,14 @@
     <header class="app-header">
         <h1>무룡 양심우산 관리자 홈</h1>
         <div class="header-btns">
-            <button class="icon-btn pdf" onclick="openPdfModal()">PDF출력</button>
-            <button class="icon-btn danger" onclick="resetList()">초기화</button>
+            <button class="icon-btn danger" onclick="resetList()">🗑️ 전체 초기화</button>
         </div>
     </header>
 
     <div class="content">
         <div class="scanner-section">
             <button id="start-btn" class="btn-scan" onclick="startScanner()" style="flex-direction: row;">
-                <span style="font-size: 20px;"></span> QR패스 스캔하기
+                <span style="font-size: 20px;">📷</span> QR패스 스캔하기
             </button>
             <div id="reader-container">
                 <div id="reader"></div>
@@ -97,27 +99,51 @@
             </div>
         </div>
 
-        <div class="list-header">
+        <div class="list-header" style="align-items: center;">
             <h3>전체 이용/상태 내역</h3>
+            <button class="btn-pdf-main" onclick="openPdfModal()">📄 PDF 다운로드</button>
         </div>
         
         <div id="rental-list"></div>
     </div>
 
+    <div id="damage-modal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-content" style="max-width: 360px; text-align: center; border-radius: 24px;">
+            <div class="modal-header" style="justify-content: center; border: none; padding-bottom: 0;">
+                <h3 style="color: #0f172a; font-size: 22px;">☂️ 우산 상태 확인</h3>
+            </div>
+            <p style="color: #64748b; font-size: 15px; margin-bottom: 25px; line-height: 1.5;">
+                <strong id="d-student-name" style="color: var(--primary);"></strong> 학생이 반납하는<br>
+                <strong id="d-umbrella-num" style="color: var(--danger);"></strong>번 우산이 파손되었습니까?
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <button class="btn-scan" style="background: var(--success); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);" onclick="executeReturn(false)">
+                    ✅ 파손 없음 (정상 반납)
+                </button>
+                <button class="btn-scan" style="background: var(--dark); box-shadow: 0 4px 12px rgba(51, 65, 85, 0.3);" onclick="executeReturn(true)">
+                    🚨 파손됨 (다음 대여 차단)
+                </button>
+                <button class="btn-scan" style="background: #f1f5f9; color: #64748b; box-shadow: none;" onclick="document.getElementById('damage-modal').style.display='none'">
+                    취소 (뒤로가기)
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="pdf-modal" class="modal-overlay" onclick="closeModal(event)">
         <div class="modal-content" style="max-width: 360px;">
             <div class="modal-header">
-                <h3>PDF 출력 옵션</h3>
+                <h3>📄 PDF 출력 옵션</h3>
                 <button class="close-btn" onclick="closeModal(event)">✕</button>
             </div>
             <p style="color: #64748b; font-size: 14px; margin-bottom: 20px; line-height: 1.4;">추출할 명단의 용도를 선택해 주세요.</p>
             <div style="display: flex; flex-direction: column; gap: 12px;">
                 <button class="btn-scan" style="background: var(--purple);" onclick="executePDF('public')">
-                    공개용 명단 (게시판/공지용)
+                    📢 공개용 명단 (게시판/공지용)
                     <span style="font-size: 13px; font-weight: normal; margin-top: 4px; color: #ede9fe;">이름 가운데 가림, 학년만 표시</span>
                 </button>
                 <button class="btn-scan" style="background: #475569;" onclick="executePDF('admin')">
-                    관리자용 명단 (내부 보관용)
+                    🔒 관리자용 명단 (내부 보관용)
                     <span style="font-size: 13px; font-weight: normal; margin-top: 4px; color: #f1f5f9;">학번, 이름 전체 표시</span>
                 </button>
             </div>
@@ -164,6 +190,9 @@
         const myDb = supabase.createClient('https://urzbonndueqylygtzlus.supabase.co', 'sb_publishable_rZYklPBEFvoKZxatf_xAig_ceWd_epI');
         let html5QrCode;
         let isProcessing = false;
+        
+        // 💡 반납 대기 데이터를 저장할 변수
+        let pendingReturnData = null;
 
         function startScanner() {
             document.getElementById('start-btn').style.display = 'none';
@@ -256,28 +285,18 @@
                     if (checkError) throw checkError;
 
                     if (checkData && checkData.length > 0) {
+                        // 💡 알림창 대신 커스텀 모달 띄우기
                         const targetRecord = checkData[0];
-                        const umbrellaNum = targetRecord.umbrella_number;
+                        pendingReturnData = {
+                            id: targetRecord.id,
+                            student_name: targetRecord.student_name,
+                            umbrella_number: targetRecord.umbrella_number
+                        };
+                        
+                        document.getElementById('d-student-name').innerText = targetRecord.student_name;
+                        document.getElementById('d-umbrella-num').innerText = targetRecord.umbrella_number;
+                        document.getElementById('damage-modal').style.display = 'flex';
 
-                        const isDamaged = confirm(`반납 처리: [${umbrellaNum}번] 우산\n\n⚠️ 이 우산에 파손된 부분이 있습니까?\n\n- [확인] 파손 처리\n- [취소] 정상 반납`);
-
-                        const { error: updateError } = await myDb.from('umbrella_rentals')
-                            .update({ status: '반납완료', return_date: new Date().toISOString() })
-                            .eq('id', targetRecord.id);
-                        if (updateError) throw updateError;
-
-                        if (isDamaged) {
-                            await myDb.from('umbrella_rentals').insert([{
-                                student_id: '0000',
-                                student_name: '수리 필요',
-                                umbrella_number: umbrellaNum,
-                                status: '파손',
-                                rent_date: new Date().toISOString()
-                            }]);
-                            alert(`🚨 ${umbrellaNum}번 우산이 [파손] 처리되어 다음 대여가 제한됩니다.`);
-                        } else {
-                            alert(`${data.student_name} 학생 우산 정상 반납 완료!`);
-                        }
                     } else {
                         alert(`반납 실패!\n학번(${data.student_id})과 이름(${data.student_name})이 대여 시 입력한 정보와 일치하지 않거나 대여 중인 우산이 없습니다.`);
                     }
@@ -290,6 +309,41 @@
                 setTimeout(() => { isProcessing = false; }, 2000);
             }
         }
+
+        // 💡 모달에서 버튼을 눌렀을 때 실행되는 실제 반납 로직
+        async function executeReturn(isDamaged) {
+            document.getElementById('damage-modal').style.display = 'none'; // 창 닫기
+            if (!pendingReturnData) return;
+
+            const { id, student_name, umbrella_number } = pendingReturnData;
+
+            try {
+                const { error: updateError } = await myDb.from('umbrella_rentals')
+                    .update({ status: '반납완료', return_date: new Date().toISOString() })
+                    .eq('id', id);
+                
+                if (updateError) throw updateError;
+
+                if (isDamaged) {
+                    await myDb.from('umbrella_rentals').insert([{
+                        student_id: '0000',
+                        student_name: '수리 필요',
+                        umbrella_number: umbrella_number,
+                        status: '파손',
+                        rent_date: new Date().toISOString()
+                    }]);
+                    alert(`🚨 ${umbrella_number}번 우산 파손 처리 완료!\n(수리 전까지 대여가 차단됩니다)`);
+                } else {
+                    alert(`✅ 정상 반납이 완료되었습니다.`);
+                }
+            } catch (err) {
+                alert("오류 발생: " + err.message);
+            } finally {
+                pendingReturnData = null; // 초기화
+                fetchRentals(); // 새로고침
+            }
+        }
+
 
         function formatFullDate(dateString) {
             if (!dateString) return '-';
@@ -387,7 +441,19 @@
             const manualBtn = document.getElementById('manual-return-btn');
             if (row.status === '대여중') {
                 manualBtn.style.display = 'block';
-                manualBtn.onclick = () => processManualReturn(row.id, row.student_name, row.umbrella_number);
+                // 💡 수동 반납 시에도 새로운 직관적 모달창 띄우기
+                manualBtn.onclick = () => {
+                    pendingReturnData = {
+                        id: row.id,
+                        student_name: row.student_name,
+                        umbrella_number: row.umbrella_number
+                    };
+                    document.getElementById('detail-modal').style.display = 'none';
+                    
+                    document.getElementById('d-student-name').innerText = row.student_name;
+                    document.getElementById('d-umbrella-num').innerText = row.umbrella_number;
+                    document.getElementById('damage-modal').style.display = 'flex';
+                };
             } else {
                 manualBtn.style.display = 'none'; 
             }
@@ -395,33 +461,7 @@
             document.getElementById('detail-modal').style.display = 'flex';
         }
 
-        async function processManualReturn(recordId, studentName, umbrellaNum) {
-            const isDamaged = confirm(`⚠️ ${studentName} 학생 우산을 수동 반납합니다.\n\n이 우산에 파손된 부분이 있습니까?\n- [확인]: 파손\n- [취소]: 정상`);
-
-            const { error } = await myDb.from('umbrella_rentals')
-                .update({ status: '반납완료', return_date: new Date().toISOString() })
-                .eq('id', recordId);
-            
-            if (error) {
-                alert("오류 발생: " + error.message);
-            } else {
-                if (isDamaged) {
-                    await myDb.from('umbrella_rentals').insert([{
-                        student_id: '0000',
-                        student_name: '수리 필요',
-                        umbrella_number: umbrellaNum,
-                        status: '파손',
-                        rent_date: new Date().toISOString()
-                    }]);
-                    alert(`수동 반납 및 [${umbrellaNum}번] 파손 처리 완료!`);
-                } else {
-                    alert(`정상 반납 완료!`);
-                }
-                document.getElementById('detail-modal').style.display = 'none'; 
-                fetchRentals(); 
-            }
-        }
-
+        // 통합 모달 닫기
         function closeModal(event) {
             if (event.target.classList.contains('modal-overlay') || event.target.classList.contains('close-btn')) {
                 event.target.closest('.modal-overlay').style.display = 'none';
@@ -459,7 +499,7 @@
                 return;
             }
             if (!data || data.length === 0) {
-                alert('현재 미반납자가 0명입니다');
+                alert('🎉 현재 미반납자가 0명입니다!');
                 return;
             }
 
