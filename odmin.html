@@ -41,13 +41,13 @@
         .rental-card:active { transform: scale(0.98); background-color: #f8fafc; }
         .rental-card.status-rent { border-left-color: var(--danger); }
         .rental-card.status-return { border-left-color: var(--success); }
-        .rental-card.status-broken { border-left-color: var(--dark); background-color: #f8fafc; } /* 파손 카드 스타일 */
+        .rental-card.status-broken { border-left-color: var(--dark); background-color: #f8fafc; } 
 
         .card-top { display: flex; justify-content: space-between; align-items: center; }
         .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 800; }
         .badge.rent { background: #fee2e2; color: var(--danger); }
         .badge.return { background: #dcfce7; color: var(--success); }
-        .badge.broken { background: var(--dark); color: white; } /* 파손 뱃지 스타일 */
+        .badge.broken { background: var(--dark); color: white; } 
         .time-text { font-size: 12px; color: #94a3b8; }
 
         .card-body { display: flex; justify-content: space-between; align-items: center; }
@@ -56,7 +56,7 @@
         .s-id { font-size: 13px; color: #64748b; margin-top: 2px; }
         
         .umbrella-num { background: white; padding: 8px 14px; border-radius: 10px; font-size: 14px; font-weight: bold; color: var(--primary); text-align: right; border: 1px solid #e2e8f0;}
-        .rental-card.status-broken .umbrella-num { color: var(--dark); } /* 파손 우산번호 색상 */
+        .rental-card.status-broken .umbrella-num { color: var(--dark); } 
         .umbrella-num span { display: block; font-size: 11px; color: #94a3b8; font-weight: normal; margin-bottom: 2px; }
 
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: none; align-items: flex-end; justify-content: center; }
@@ -82,7 +82,6 @@
         <h1>☂️ 관리자 홈</h1>
         <div class="header-btns">
             <button class="icon-btn pdf" onclick="openPdfModal()">📄 PDF출력</button>
-            <button class="icon-btn" onclick="fetchRentals()">🔄 갱신</button>
             <button class="icon-btn danger" onclick="resetList()">🗑️ 초기화</button>
         </div>
     </header>
@@ -217,7 +216,6 @@
                 if (currentAction === 'rent') {
                     const umbrellaNum = prompt(`☂️ [대여 승인]\n${data.student_name} 학생에게 빌려줄 우산 번호를 입력하세요:`);
                     if (umbrellaNum) {
-                        // 💡 [핵심] 파손된 우산인지 확인
                         const { data: brokenData } = await myDb.from('umbrella_rentals')
                             .select('id').eq('umbrella_number', umbrellaNum).eq('status', '파손');
                         
@@ -226,7 +224,6 @@
                             return;
                         }
 
-                        // 중복 대여 확인
                         const { data: existing, error: checkErr } = await myDb.from('umbrella_rentals')
                             .select('id').eq('umbrella_number', umbrellaNum).eq('status', '대여중');
 
@@ -262,16 +259,13 @@
                         const targetRecord = checkData[0];
                         const umbrellaNum = targetRecord.umbrella_number;
 
-                        // 💡 [핵심] 반납 시 파손 여부 묻기
                         const isDamaged = confirm(`☂️ 반납 처리: [${umbrellaNum}번] 우산\n\n⚠️ 이 우산에 파손된 부분이 있습니까?\n\n- [확인] 파손 처리 (다음 대여 제한)\n- [취소] 정상 반납`);
 
-                        // 1. 기존 기록은 무조건 '반납완료'로 업데이트
                         const { error: updateError } = await myDb.from('umbrella_rentals')
                             .update({ status: '반납완료', return_date: new Date().toISOString() })
                             .eq('id', targetRecord.id);
                         if (updateError) throw updateError;
 
-                        // 2. 파손인 경우 파손 락(Lock) 데이터 추가
                         if (isDamaged) {
                             await myDb.from('umbrella_rentals').insert([{
                                 student_id: '0000',
@@ -315,12 +309,12 @@
             
             data.forEach(row => {
                 const isRent = row.status === '대여중';
-                const isBroken = row.status === '파손'; // 파손 상태 확인
+                const isBroken = row.status === '파손'; 
                 
                 let statusClass = 'status-return';
                 let badgeClass = 'return';
                 let timeLabel = '반납일시';
-                let dateObj = new Date(row.return_date || row.rent_date); // 안전을 위해 폴백 추가
+                let dateObj = new Date(row.return_date || row.rent_date); 
                 
                 if (isRent) {
                     statusClass = 'status-rent';
@@ -339,7 +333,6 @@
                 const card = document.createElement('div');
                 card.className = `rental-card ${statusClass}`;
                 
-                // 💡 [핵심] 파손 카드 클릭 시 해제 여부 묻기
                 card.onclick = () => {
                     if (isBroken) {
                         if(confirm(`🛠️ ${row.umbrella_number}번 우산 수리가 완료되었습니까?\n\n[확인]을 누르시면 파손 상태가 해제되어 다시 대여할 수 있습니다.`)) {
@@ -402,7 +395,6 @@
             document.getElementById('detail-modal').style.display = 'flex';
         }
 
-        // 💡 수동 반납 시에도 파손 처리 물어보기 적용
         async function processManualReturn(recordId, studentName, umbrellaNum) {
             const isDamaged = confirm(`⚠️ ${studentName} 학생 우산을 수동 반납합니다.\n\n이 우산에 파손된 부분이 있습니까?\n- [확인]: 파손 (다음 대여 제한)\n- [취소]: 정상`);
 
@@ -457,7 +449,6 @@
             document.getElementById('pdf-modal').style.display = 'none'; 
             const isPublic = (type === 'public');
             
-            // 💡 '대여중'인 학생만 추출 (파손 상태는 제외됨)
             const { data, error } = await myDb.from('umbrella_rentals')
                 .select('*')
                 .eq('status', '대여중')
